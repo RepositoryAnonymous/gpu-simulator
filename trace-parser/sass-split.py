@@ -29,7 +29,7 @@ for sass_file in sass_files:
         gwarp_id = int(content[i*3 + 2], 16)
         entry = (kernel_id, gwarp_id)
         
-        # 使用字典累积内容，而非直接写文件
+        # Use dictionaries to accumulate content instead of writing files directly
         if entry not in warp_content:
             warp_content[entry] = []
         warp_content[entry].append(content[i*3] + " " + content[i*3 + 1])
