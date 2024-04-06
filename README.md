@@ -1,4 +1,3 @@
-# GPU-Simulator
 
 The source code for the simulator presented in our paper (Submission #49) at the "MICRO 2024" conference.
 
@@ -73,7 +72,7 @@ The source code for the simulator presented in our paper (Submission #49) at the
 
 1. Clone the repository:
    ```shell
-   git clone https://github.com/RepositoryAnonymous/gpu-simulator.git
+   git clone https://github.com/RepositoryAnonymous/gpu-simulator.git gpu-simulator
    ```
 
 2. Change to the project directory:
@@ -87,6 +86,31 @@ The source code for the simulator presented in our paper (Submission #49) at the
    ```
 
 The compiled simulator executable is called `gpu-simulator.x`, and is just in the current directory.
+
+## Clone the Benchmark Suit 
+
+The benchmark application suit we used for validation consisted of 43 applications with a total 
+of 1784 kernels. We evaluate them on a real NVIDIA QUADRO GV100. These applications are from the 
+cuBLAS library, the heterogeneous computing benchmark suite PolyBench and Rodinia, the fluid 
+dynamics benchmark LULESH, the deep learning basic operator benchmark suite DeepBench, the DNN 
+benchmark suite Tango, the unstructured mesh mini-app benchmark PENNANT. For all selected 
+applications, we select their first 100 kernels for evaluation. All workloads are compiled using 
+CUDA 11.8 with the compute capability `sm70` for the Volta architecture. You can clone this 
+benchmark suit we used from [here](https://github.com/RepositoryAnonymous/simulator-apps).
+
+1. Change to the simulator project directory:
+```shell
+   cd gpu-simulator
+```
+
+2. Clone the benchmark suit repository:
+```shell
+git clone https://github.com/RepositoryAnonymous/simulator-apps.git apps
+```
+
+For guidance on compiling these applications and getting their traces on real hardware, please 
+refer to [here](https://github.com/RepositoryAnonymous/simulator-apps/README.md). And this repo 
+also provides the guide to obtain experimental results and reproduction images of our paper.
 
 ## Running the Simulator
 
