@@ -126,10 +126,8 @@ int main(int argc, char *argv[]) {
   }
   // 2024.04.07 End
 
-  std::map<std::pair<int, int>, std::vector<std::string>> warp_content;
-
   for (const auto &sass_file : sass_files) {
-
+    std::map<std::pair<int, int>, std::vector<std::string>> warp_content;
     std::cout << "Processing " << sass_file << "\n";
     std::ifstream file(sass_file);
     std::string content((std::istreambuf_iterator<char>(file)),
@@ -139,6 +137,7 @@ int main(int argc, char *argv[]) {
     auto underscorePos = sass_file.find_last_of('_');
     int kernel_id = std::stoi(sass_file.substr(
         underscorePos + 1, sass_file.find(".sass") - underscorePos - 1));
+    if (kernel_id > 100) continue;
 
     for (size_t i = 0; i < tokens.size() / 3; ++i) {
       int gwarp_id = std::stoi(tokens[i * 3 + 2], nullptr, 16);
@@ -182,18 +181,16 @@ int main(int argc, char *argv[]) {
       for (auto &line : item.second) {
         f_open << line;
       }
-      // f_open.close();
+    }
+    for (auto it_map = sass_trace_fp_map.begin(); it_map != sass_trace_fp_map.end(); it_map++) {
+      it_map->second.close();
+      it_map = sass_trace_fp_map.erase(it_map);
     }
   }
 
-  for (auto it_map = sass_trace_fp_map.begin(); it_map != sass_trace_fp_map.end(); it_map++) {
-    it_map->second.close();
-  }
-
   // 2024.04.07 Start
-  std::map<std::pair<int, int>, std::vector<std::string>> blk_content;
   for (const auto &mem_file : memory_files) {
-
+    std::map<std::pair<int, int>, std::vector<std::string>> blk_content;
     std::cout << "Processing " << mem_file << "\n";
     std::ifstream file(mem_file);
     std::string content((std::istreambuf_iterator<char>(file)),
@@ -204,6 +201,7 @@ int main(int argc, char *argv[]) {
     auto underscorePos = mem_file.find_last_of('_');
     int kernel_id = std::stoi(mem_file.substr(
         underscorePos + 1, mem_file.find(".mem") - underscorePos - 1));
+    if (kernel_id > 100) continue;
 
     std::string line_str;
     int block_id;
@@ -229,7 +227,6 @@ int main(int argc, char *argv[]) {
       std::string outputPath =
           memory_dir + "/kernel_" + std::to_string(item.first.first) +
           "_block_" + std::to_string(item.first.second) + ".mem";
-      
       std::ofstream *mem_trace_fp_ptr = nullptr;
 
       auto x = std::make_tuple(kernel_id, item.first.second);
@@ -253,14 +250,13 @@ int main(int argc, char *argv[]) {
       for (auto &line : item.second) {
         f_open << line << std::endl;
       }
-      // f_open.close();
+    }
+    for (auto it_map = mem_trace_fp_map.begin(); it_map != mem_trace_fp_map.end(); it_map++) {
+      it_map->second.close();
+      it_map = mem_trace_fp_map.erase(it_map);
     }
   }
   // 2024.04.07 End
-
-  for (auto it_map = mem_trace_fp_map.begin(); it_map != mem_trace_fp_map.end(); it_map++) {
-    it_map->second.close();
-  }
 
   return 0;
 }
