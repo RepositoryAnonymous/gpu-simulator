@@ -5,6 +5,7 @@
 #include <iterator>
 #include <map>
 #include <set>
+#include <tuple>
 #include <sstream>
 #include <sstream>
 #include <sys/stat.h>
@@ -58,6 +59,9 @@ bool isMemoryFile(const std::string &file) {
   return false;
 }
 // 2024.04.07 End
+
+std::map<std::tuple<int, int>, std::ofstream> sass_trace_fp_map;
+std::map<std::tuple<int, int>, std::ofstream> mem_trace_fp_map;
 
 int main(int argc, char *argv[]) {
   if (argc != 3 || std::string(argv[1]) != "--dir") {
@@ -154,8 +158,27 @@ int main(int argc, char *argv[]) {
       std::string outputPath =
           sass_dir + "/kernel_" + std::to_string(item.first.first) +
           "_gwarp_id_" + std::to_string(item.first.second) + ".split.sass";
-      std::ofstream f_open;
-      f_open.open(outputPath);
+      
+      std::ofstream *sass_trace_fp_ptr = nullptr;
+
+      auto x = std::make_tuple(kernel_id, item.first.second);
+      auto it_map = sass_trace_fp_map.find(x);
+      if (it_map == sass_trace_fp_map.end()) {
+        if (sass_trace_fp_map.size() >= 512) {
+          auto it = sass_trace_fp_map.begin();
+          it->second.close();
+          sass_trace_fp_map.erase(it);
+        }
+        std::ofstream &sass_trace_fp =
+            sass_trace_fp_map.emplace(x, std::ofstream{}).first->second;
+        sass_trace_fp.open(outputPath, std::ios::app);
+        sass_trace_fp_ptr = &sass_trace_fp;
+      } else {
+        sass_trace_fp_ptr = &(it_map->second);
+      }
+
+      auto &f_open = *sass_trace_fp_ptr;
+      
       for (auto &line : item.second) {
         f_open << line;
       }
@@ -202,8 +225,27 @@ int main(int argc, char *argv[]) {
       std::string outputPath =
           memory_dir + "/kernel_" + std::to_string(item.first.first) +
           "_block_" + std::to_string(item.first.second) + ".mem";
-      std::ofstream f_open;
-      f_open.open(outputPath);
+      
+      std::ofstream *mem_trace_fp_ptr = nullptr;
+
+      auto x = std::make_tuple(kernel_id, item.first.second);
+      auto it_map = mem_trace_fp_map.find(x);
+      if (it_map == mem_trace_fp_map.end()) {
+        if (mem_trace_fp_map.size() >= 512) {
+          auto it = mem_trace_fp_map.begin();
+          it->second.close();
+          mem_trace_fp_map.erase(it);
+        }
+        std::ofstream &mem_trace_fp =
+            mem_trace_fp_map.emplace(x, std::ofstream{}).first->second;
+        mem_trace_fp.open(outputPath, std::ios::app);
+        mem_trace_fp_ptr = &mem_trace_fp;
+      } else {
+        mem_trace_fp_ptr = &(it_map->second);
+      }
+
+      auto &f_open = *mem_trace_fp_ptr;
+
       for (auto &line : item.second) {
         f_open << line;
       }
@@ -211,6 +253,13 @@ int main(int argc, char *argv[]) {
     }
   }
   // 2024.04.07 End
+
+  for (auto it_map = sass_trace_fp_map.begin(); it_map != sass_trace_fp_map.end(); it_map++) {
+    it_map->second.close();
+  }
+  for (auto it_map = mem_trace_fp_map.begin(); it_map != mem_trace_fp_map.end(); it_map++) {
+    it_map->second.close();
+  }
 
   return 0;
 }
