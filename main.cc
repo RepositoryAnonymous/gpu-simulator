@@ -976,7 +976,12 @@ int main(int argc, char **argv) {
 
   stat_coll.set_Simulation_time_compute_model(cost_compute_timer, world.rank());
 
-  stat_coll.dump_output(configs, world.rank());
+  world.barrier();
+  if (world.rank() == 0)
+    stat_coll.dump_output(configs, world.rank());
+  world.barrier();
+  if (world.rank() != 0)
+    stat_coll.dump_output(configs, world.rank());
 
   fflush(stdout);
 
