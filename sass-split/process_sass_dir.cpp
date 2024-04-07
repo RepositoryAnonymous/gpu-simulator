@@ -186,6 +186,10 @@ int main(int argc, char *argv[]) {
     }
   }
 
+  for (auto it_map = sass_trace_fp_map.begin(); it_map != sass_trace_fp_map.end(); it_map++) {
+    it_map->second.close();
+  }
+
   // 2024.04.07 Start
   std::map<std::pair<int, int>, std::vector<std::string>> blk_content;
   for (const auto &mem_file : memory_files) {
@@ -254,9 +258,6 @@ int main(int argc, char *argv[]) {
   }
   // 2024.04.07 End
 
-  for (auto it_map = sass_trace_fp_map.begin(); it_map != sass_trace_fp_map.end(); it_map++) {
-    it_map->second.close();
-  }
   for (auto it_map = mem_trace_fp_map.begin(); it_map != mem_trace_fp_map.end(); it_map++) {
     it_map->second.close();
   }
