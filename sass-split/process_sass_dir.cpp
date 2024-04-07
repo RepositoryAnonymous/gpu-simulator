@@ -85,9 +85,9 @@ int main(int argc, char *argv[]) {
               getFullPath(sass_dir, std::string(ent->d_name));
 
           if (std::remove(filePath.c_str()) == 0) {
-            std::cout << "Deleted non-sass file: " << ent->d_name << std::endl;
+            // std::cout << "Deleted non-sass file: " << ent->d_name << std::endl;
           } else {
-            std::cerr << "Error deleting file: " << ent->d_name << std::endl;
+            // std::cerr << "Error deleting file: " << ent->d_name << std::endl;
           }
         }
       }
@@ -112,9 +112,9 @@ int main(int argc, char *argv[]) {
               getFullPath(memory_dir, std::string(ent->d_name));
 
           if (std::remove(filePath.c_str()) == 0) {
-            std::cout << "Deleted non-mem file: " << ent->d_name << std::endl;
+            // std::cout << "Deleted non-mem file: " << ent->d_name << std::endl;
           } else {
-            std::cerr << "Error deleting file: " << ent->d_name << std::endl;
+            // std::cerr << "Error deleting file: " << ent->d_name << std::endl;
           }
         }
       }
@@ -182,7 +182,7 @@ int main(int argc, char *argv[]) {
       for (auto &line : item.second) {
         f_open << line;
       }
-      f_open.close();
+      // f_open.close();
     }
   }
 
@@ -251,9 +251,9 @@ int main(int argc, char *argv[]) {
       auto &f_open = *mem_trace_fp_ptr;
 
       for (auto &line : item.second) {
-        f_open << line;
+        f_open << line << std::endl;
       }
-      f_open.close();
+      // f_open.close();
     }
   }
   // 2024.04.07 End
