@@ -1156,6 +1156,51 @@ public:
         &clk_record_value = clk_record[std::make_tuple(kid, wid, uid)];
     return std::get<pos>(clk_record_value);
   }
+  bool judge_can_issue_of_bar(unsigned gwid, unsigned kid) { // 0704
+    // calculate the block id
+    unsigned block_id = (int)(gwid / appcfg->get_num_warp_per_block(kid));
+    // find if block_id is in block_is_in_bar
+    bool is_in_block_is_in_bar = (block_is_in_bar.find(block_id) != block_is_in_bar.end());
+    if (is_in_block_is_in_bar) {
+      unsigned already_in_bar_num = block_is_in_bar[block_id].size();
+      bool all_true = true;
+      bool all_false = true;
+      
+      for (unsigned _ = 0; _ < already_in_bar_num; _++) {
+        if (block_is_in_bar[block_id][_] == false) {
+          all_true = false;
+        }
+        if (block_is_in_bar[block_id][_] == true) {
+          all_false = false;
+        }
+      }
+      
+      if (already_in_bar_num < appcfg->get_num_warp_per_block(kid) - 1 && already_in_bar_num > 0 && all_true) {
+        block_is_in_bar[block_id].push_back(true);
+        return false;
+      } else if (already_in_bar_num == appcfg->get_num_warp_per_block(kid) - 1 && all_true) {
+        for (unsigned _ = 0; _ < already_in_bar_num; _++) {
+          block_is_in_bar[block_id][_] = false;
+        }
+        return true;
+      } else if (already_in_bar_num <= appcfg->get_num_warp_per_block(kid) - 1 && all_false) {
+        // pop one from block_is_in_bar[block_id]
+        block_is_in_bar[block_id].pop_back();
+        if (block_is_in_bar[block_id].size() == 0) {
+          block_is_in_bar.erase(block_id);
+        }
+        return true;
+      } else {
+        block_is_in_bar.erase(block_id);
+        return true;
+      }
+    } else {
+      block_is_in_bar[block_id] = {true};
+      return false;
+    }
+
+    return true;
+  }
 
 private:
   unsigned m_smid;
@@ -1252,6 +1297,8 @@ private:
       std::tuple<unsigned, unsigned, unsigned>,
       std::tuple<unsigned, unsigned, unsigned, unsigned, unsigned, unsigned>>
       clk_record;
+
+  std::map<unsigned, std::vector<bool>> block_is_in_bar; // 0704 
 };
 
 #endif
