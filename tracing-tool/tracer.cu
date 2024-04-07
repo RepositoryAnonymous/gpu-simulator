@@ -757,14 +757,20 @@ void *recv_thread_fun(void *) {
           int index = ia->cta_id_z * kernel_gridY * kernel_gridX +
                       kernel_gridX * ia->cta_id_y + ia->cta_id_x;
 
-          string file_name = "./memory_traces/kernel_" + to_string(kernel_id) +
-                             "_block_" + to_string(index) + ".mem";
+          // string file_name = "./memory_traces/kernel_" + to_string(kernel_id) +
+          //                    "_block_" + to_string(index) + ".mem";
+          string file_name = "./memory_traces/kernel_"+ to_string(kernel_id)+".mem";
 
           ofstream *mem_trace_fp_ptr = nullptr;
 
-          auto x = make_tuple(kernel_id, index);
+          auto x = make_tuple(kernel_id, 0);
           auto it_map = mem_trace_fp_map.find(x);
           if (it_map == mem_trace_fp_map.end()) {
+            if (mem_trace_fp_map.size() >= 512) {
+              auto it = mem_trace_fp_map.begin();
+              it->second.close();
+              mem_trace_fp_map.erase(it);
+            }
             ofstream &mem_trace_fp =
                 mem_trace_fp_map.emplace(x, std::ofstream{}).first->second;
             mem_trace_fp.open(file_name, std::ios::app);
@@ -774,6 +780,8 @@ void *recv_thread_fun(void *) {
           }
 
           auto &mem_trace_fp = *mem_trace_fp_ptr;
+
+          mem_trace_fp << hex << index << " ";
 
           mem_trace_fp << hex << ia->pc << " ";
 
