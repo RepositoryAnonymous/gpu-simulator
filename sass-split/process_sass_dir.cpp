@@ -182,9 +182,10 @@ int main(int argc, char *argv[]) {
         f_open << line;
       }
     }
-    for (auto it_map = sass_trace_fp_map.begin(); it_map != sass_trace_fp_map.end(); it_map++) {
-      it_map->second.close();
-      it_map = sass_trace_fp_map.erase(it_map);
+    auto it_map = sass_trace_fp_map.begin();
+    while (it_map != sass_trace_fp_map.end()) {
+        it_map->second.close();
+        it_map = sass_trace_fp_map.erase(it_map);
     }
   }
 
@@ -251,9 +252,10 @@ int main(int argc, char *argv[]) {
         f_open << line << std::endl;
       }
     }
-    for (auto it_map = mem_trace_fp_map.begin(); it_map != mem_trace_fp_map.end(); it_map++) {
-      it_map->second.close();
-      it_map = mem_trace_fp_map.erase(it_map);
+    auto it_map = mem_trace_fp_map.begin();
+    while (it_map != mem_trace_fp_map.end()) {
+        it_map->second.close();
+        it_map = mem_trace_fp_map.erase(it_map);
     }
   }
   // 2024.04.07 End
