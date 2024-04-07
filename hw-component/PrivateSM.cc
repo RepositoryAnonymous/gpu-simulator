@@ -1874,6 +1874,16 @@ void PrivateSM::run(unsigned KERNEL_EVALUATION, unsigned MEM_ACCESS_LATENCY,
             ar1 = tmp_trace_warp_inst->get_ar1();
             ar2 = tmp_trace_warp_inst->get_ar2();
 
+            if (tmp_trace_warp_inst->get_op() == MEMORY_BARRIER_OP || 
+                tmp_trace_warp_inst->get_op() == BARRIER_OP) {
+              bool can_issue_of_bar = judge_can_issue_of_bar(_gwid, _kid);
+              if (!can_issue_of_bar) {
+                stat_coll->set_At_least_one_Synchronization_Stall_found(true);
+                checked_num++;
+                continue;
+              }
+            }
+
             for (unsigned i = 0; i < tmp_inst_trace->reg_srcs_num; i++) {
               regnums.push_back(tmp_inst_trace->reg_src[i]);
             }
