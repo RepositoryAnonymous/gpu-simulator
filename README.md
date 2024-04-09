@@ -99,14 +99,14 @@ CUDA 11.8 with the compute capability `sm70` for the Volta architecture. You can
 benchmark suit we used from [here](https://github.com/RepositoryAnonymous/simulator-apps).
 
 1. Change to the simulator project directory:
-```shell
+   ```shell
    cd gpu-simulator
-```
+   ```
 
 2. Clone the benchmark suit repository:
-```shell
-git clone https://github.com/RepositoryAnonymous/simulator-apps.git apps
-```
+   ```shell
+   git clone https://github.com/RepositoryAnonymous/simulator-apps.git apps
+   ```
 
 For guidance on compiling these applications and getting their traces on real hardware, please 
 refer to [here](https://github.com/RepositoryAnonymous/simulator-apps/README.md). And this repo 
