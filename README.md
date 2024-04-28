@@ -109,7 +109,7 @@ benchmark suit we used from [here](https://github.com/RepositoryAnonymous/simula
    ```
 
 For guidance on compiling these applications and getting their traces on real hardware, please 
-refer to [here](https://github.com/RepositoryAnonymous/simulator-apps/README.md). And this repo 
+refer to [here](https://github.com/RepositoryAnonymous/simulator-apps/blob/main/README.md). And this repo 
 also provides the guide to obtain experimental results and reproduction images of our paper.
 
 ## Running the Simulator
