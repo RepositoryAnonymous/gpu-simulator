@@ -27,6 +27,8 @@
 #define PRED_NUM_OFFSET 65536
 #define MAX_ALU_LATENCY 1024
 
+#define WARP_SIZE 32
+
 #define PRINT_STALLS_DISTRIBUTION 0
 
 enum exec_unit_type_t {
@@ -59,7 +61,7 @@ struct stage_instns_identifier {
 
 class stat_collector {
 public:
-  stat_collector(unsigned num_sm, unsigned kernel_id);
+  stat_collector(hw_config* hw_cfg, unsigned kernel_id);
   void set_Unified_L1_cache_hit_rate(float value, unsigned smid) {
     Unified_L1_cache_hit_rate[smid] = value;
   }
@@ -81,12 +83,10 @@ public:
     }
   }
 
-  unsigned get_max_block_size() { return max_block_size; }
   unsigned get_warp_size() { return warp_size; }
   unsigned get_smem_allocation_size() { return smem_allocation_size; }
   unsigned get_max_registers_per_SM() { return max_registers_per_SM; }
   unsigned get_max_registers_per_block() { return max_registers_per_block; }
-  unsigned get_max_registers_per_thread() { return max_registers_per_thread; }
   unsigned get_register_allocation_size() { return register_allocation_size; }
   unsigned get_max_active_blocks_per_SM() { return max_active_blocks_per_SM; }
   unsigned get_max_active_threads_per_SM() { return max_active_threads_per_SM; }
@@ -98,7 +98,6 @@ public:
     return allocated_active_warps_per_block;
   }
 
-  void set_max_block_size(unsigned value) { max_block_size = value; }
   void set_warp_size(unsigned value) { warp_size = value; }
   void set_smem_allocation_size(unsigned value) {
     smem_allocation_size = value;
@@ -108,9 +107,6 @@ public:
   }
   void set_max_registers_per_block(unsigned value) {
     max_registers_per_block = value;
-  }
-  void set_max_registers_per_thread(unsigned value) {
-    max_registers_per_thread = value;
   }
   void set_register_allocation_size(unsigned value) {
     register_allocation_size = value;
@@ -940,12 +936,10 @@ private:
   std::vector<float> Simulation_time_compute_model;
 
   unsigned m_num_sm;
-  unsigned max_block_size;
   unsigned warp_size;
   unsigned smem_allocation_size;
   unsigned max_registers_per_SM;
   unsigned max_registers_per_block;
-  unsigned max_registers_per_thread;
   unsigned register_allocation_size;
   unsigned max_active_blocks_per_SM;
   unsigned max_active_threads_per_SM;
@@ -1175,15 +1169,15 @@ public:
         }
       }
       
-      if (already_in_bar_num < appcfg->get_num_warp_per_block(kid) - 1 && already_in_bar_num > 0 && all_true) {
+      if ((int)already_in_bar_num < appcfg->get_num_warp_per_block(kid) - 1 && already_in_bar_num > 0 && all_true) {
         block_is_in_bar[block_id].push_back(true);
         return false;
-      } else if (already_in_bar_num == appcfg->get_num_warp_per_block(kid) - 1 && all_true) {
+      } else if ((int)already_in_bar_num == appcfg->get_num_warp_per_block(kid) - 1 && all_true) {
         for (unsigned _ = 0; _ < already_in_bar_num; _++) {
           block_is_in_bar[block_id][_] = false;
         }
         return true;
-      } else if (already_in_bar_num <= appcfg->get_num_warp_per_block(kid) - 1 && all_false) {
+      } else if ((int)already_in_bar_num <= appcfg->get_num_warp_per_block(kid) - 1 && all_false) {
         // pop one from block_is_in_bar[block_id]
         block_is_in_bar[block_id].pop_back();
         if (block_is_in_bar[block_id].size() == 0) {
