@@ -166,8 +166,7 @@ void _inst_trace_t::parse_opcode_latency_info() {
       break;
     case LOAD_OP:
     case STORE_OP:
-      latency = NUM_CYCLE_MEM_ACCESS_LATENCY;
-
+      latency = NUM_CYCLE_MEM_ACCESS_LATENCY; // need to fix: para
       initiation_interval = 2;
       func_unit = LDST_UNIT;
       break;
