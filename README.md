@@ -82,7 +82,7 @@ The source code for the simulator presented in our paper (Submission #49) at the
 
 3. Build the simulator:
    ```shell
-   make -j
+   make all -j
    ```
 
 The compiled simulator executable is called `gpu-simulator.x`, and is just in the current directory.
