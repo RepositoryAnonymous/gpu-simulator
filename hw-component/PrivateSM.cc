@@ -1,23 +1,21 @@
 #include "PrivateSM.h"
 
-stat_collector::stat_collector(unsigned num_sm, unsigned kernel_id) {
+stat_collector::stat_collector(hw_config* hw_cfg, unsigned kernel_id) {
   this->kernel_id = kernel_id;
 
-  m_num_sm = num_sm;
-  max_block_size = 1024;
-  warp_size = 32;
-  smem_allocation_size = 256;
-  max_registers_per_SM = 65536;
-  max_registers_per_block = 65536;
-  max_registers_per_thread = 255;
-  register_allocation_size = 256;
-  max_active_blocks_per_SM = 32;
-  max_active_threads_per_SM = 2048;
-  shared_mem_size = 96 * 1024;
+  m_num_sm = hw_cfg->get_num_sms_per_cluster() * hw_cfg->get_num_clusters();
+  warp_size = WARP_SIZE;
+  smem_allocation_size = hw_cfg->get_smem_allocation_size();
+  max_registers_per_SM = hw_cfg->get_max_registers_per_sm();
+  max_registers_per_block = hw_cfg->get_max_registers_per_cta();
+  register_allocation_size = hw_cfg->get_register_allocation_size();
+  max_active_blocks_per_SM = hw_cfg->get_max_ctas_per_sm();
+  max_active_threads_per_SM = hw_cfg->get_max_threads_per_sm();
+  shared_mem_size = hw_cfg->get_l2d_size_per_sub_partition() * 1024;
 
   active_SMs = 0;
 
-  Thread_block_limit_SM = 32;
+  Thread_block_limit_SM = hw_cfg->get_max_ctas_per_sm();
   Thread_block_limit_registers = 0;
   Thread_block_limit_shared_memory = 0;
   Thread_block_limit_warps = 0;
@@ -1558,7 +1556,7 @@ void PrivateSM::run(unsigned KERNEL_EVALUATION, unsigned MEM_ACCESS_LATENCY,
             std::vector<std::string> opcode_tokens =
                 tmp_inst_trace->get_opcode_tokens();
 
-            (*inp.m_out[i]).set_latency(33, reg_id);
+            (*inp.m_out[i]).set_latency(33, reg_id); // need to fix: para
             for (const auto &token : opcode_tokens) {
               if (token.find("CONSTANT") != std::string::npos) {
                 (*inp.m_out[i]).set_latency(8, reg_id);
@@ -1675,7 +1673,7 @@ void PrivateSM::run(unsigned KERNEL_EVALUATION, unsigned MEM_ACCESS_LATENCY,
                 m_hw_cfg->get_num_int_units() + m_hw_cfg->get_num_dp_units() +
                 m_hw_cfg->get_num_tensor_core_units() +
                 m_hw_cfg->get_num_mem_units();
-            for (unsigned _ = 1; _ < 2; _++) {
+            for (unsigned _ = 1; _ < 2; _++) { // need to fix: para
               if (m_fu[offset_fu + _]->can_issue(
                       tmp_inst_trace->get_latency())) {
                 schedule_wb_now = !m_fu[offset_fu + _]->stallable();
