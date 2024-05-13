@@ -10,7 +10,6 @@
 #include <time.h>
 #include <vector>
 
-#include "./DEV-Def/compute_capability_config.h"
 #include "./ISA-Def/trace_opcode.h"
 #include "./trace-parser/trace-parser.h"
 
@@ -107,29 +106,32 @@ void private_L1_cache_stack_distance_evaluate_boost_no_concurrent(
     std::map<std::tuple<int, int, unsigned long long>, std::map<unsigned, bool>>
         *mem_instn_distance_overflow_flag,
     int _tmp_print_, std::string configs_dir, bool dump_histogram,
-    stat_collector *stat_coll, unsigned KERNEL_EVALUATION,
+    stat_collector *stat_coll, hw_config *hw_cfg, unsigned KERNEL_EVALUATION,
     std::vector<unsigned> *MEM_ACCESS_LATENCY) {
   boost::mpi::environment env(argc, argv);
   boost::mpi::communicator world;
 
   const int pass_num =
-      int((gpu_config[V100].num_sm + world.size() - 1) / world.size());
+      int((hw_cfg->get_num_sms() + world.size() - 1) / world.size());
 
-  unsigned l1_cache_line_size = 32;
-  unsigned l1_cache_size = 32 * 1024;
-  // unsigned l1_cache_associativity = 128;
+  unsigned l1_cache_line_size = hw_cfg->get_l1_cache_line_size_for_reuse_distance();
+  unsigned l1_cache_size = hw_cfg->get_unified_l1d_size() * 1024 - 
+                           hw_cfg->get_shmem_size_per_sm();
+  // unsigned l1_cache_associativity = hw_cfg->get_l1d_cache_associative();
   unsigned l1_cache_blocks = l1_cache_size / l1_cache_line_size;
-  unsigned l2_cache_line_size = 64;
-  unsigned l2_cache_size = 96 * 1024 * 64;
-  // unsigned l2_cache_associativity = 24;
+  unsigned l2_cache_line_size = hw_cfg->get_l2_cache_line_size_for_reuse_distance();
+  unsigned l2_cache_size = hw_cfg->get_l2d_size_per_sub_partition() * 1024 * 
+                           hw_cfg->get_num_memory_controllers() * 
+                           hw_cfg->get_num_sub_partition_per_memory_channel();
+  // unsigned l2_cache_associativity = hw_cfg->get_l2d_cache_associative();
   unsigned l2_cache_blocks = l2_cache_size / l2_cache_line_size;
 
   float L1_hit_rate = 0.0;
 
   for (int pass = 0; pass < pass_num; pass++) {
-    int curr_process_idx_rank = world.rank() + pass * world.size();
-    int curr_process_idx;
-    if (curr_process_idx_rank < gpu_config[V100].num_sm) {
+    unsigned curr_process_idx_rank = world.rank() + pass * world.size();
+    unsigned curr_process_idx;
+    if (curr_process_idx_rank < hw_cfg->get_num_sms()) {
       curr_process_idx = curr_process_idx_rank;
     } else
       continue;
@@ -318,7 +320,7 @@ void private_L1_cache_stack_distance_evaluate_boost_no_concurrent(
       if ((unsigned)KERNEL_EVALUATION != kid)
         continue;
       unsigned max_instn_size = 0;
-      for (unsigned sm_id = 0; sm_id < (unsigned)(gpu_config[V100].num_sm);
+      for (unsigned sm_id = 0; sm_id < (unsigned)(hw_cfg->get_num_sms());
            sm_id++) {
 
         if ((*SM_traces_all_passes)[kid][sm_id].size() > max_instn_size) {
@@ -338,7 +340,7 @@ void private_L1_cache_stack_distance_evaluate_boost_no_concurrent(
 
       for (unsigned instn_index = 0; instn_index < max_instn_size;
            instn_index++) {
-        for (unsigned sm_id = 0; sm_id < (unsigned)(gpu_config[V100].num_sm);
+        for (unsigned sm_id = 0; sm_id < (unsigned)(hw_cfg->get_num_sms());
              sm_id++) {
 
           if (instn_index < (*SM_traces_all_passes)[kid][sm_id].size()) {
@@ -412,7 +414,7 @@ void private_L1_cache_stack_distance_evaluate_boost_no_concurrent(
 
   world.barrier();
 
-  unsigned dram_mem_access = 302;
+  unsigned dram_mem_access = 302; // need to fix: para
   unsigned l1_cache_access = 33;
   unsigned l2_cache_access = 213;
 
@@ -426,9 +428,9 @@ void private_L1_cache_stack_distance_evaluate_boost_no_concurrent(
                                                l1_cache_access_latency;
 
   for (int pass = 0; pass < pass_num; pass++) {
-    int curr_process_idx_rank = world.rank() + pass * world.size();
-    int curr_process_idx;
-    if (curr_process_idx_rank < gpu_config[V100].num_sm) {
+    unsigned curr_process_idx_rank = world.rank() + pass * world.size();
+    unsigned curr_process_idx;
+    if (curr_process_idx_rank < hw_cfg->get_num_sms()) {
       curr_process_idx = curr_process_idx_rank;
     } else
       continue;
@@ -498,16 +500,17 @@ int main(int argc, char **argv) {
   std::vector<int> need_to_read_mem_instns_sms;
 
   const int pass_num =
-      int((gpu_config[V100].num_sm + world.size() - 1) / world.size());
+      int((hw_cfg.get_num_sms() + world.size() - 1) / world.size());
   for (int _pass = 0; _pass < pass_num; _pass++) {
-    int curr_process_idx_rank = world.rank() + _pass * world.size();
+    unsigned curr_process_idx_rank = world.rank() + _pass * world.size();
 
-    int curr_process_idx = curr_process_idx_rank;
-    if (curr_process_idx < gpu_config[V100].num_sm)
+    unsigned curr_process_idx = curr_process_idx_rank;
+    if (curr_process_idx < hw_cfg.get_num_sms())
       need_to_read_mem_instns_sms.push_back(curr_process_idx);
   }
 
-  stat_collector stat_coll(gpu_config[V100].num_sm, KERNEL_EVALUATION);
+  // statistics collector 
+  stat_collector stat_coll(&hw_cfg, KERNEL_EVALUATION);
 
   std::vector<std::pair<int, int>> need_to_read_mem_instns_kernel_block_pair;
 
@@ -620,10 +623,10 @@ int main(int argc, char **argv) {
 
   passnum_concurrent_issue_to_sm = int(
       (tracer.get_appcfg()->get_kernels_num() +
-       (gpgpu_concurrent_kernel_sm ? gpu_config[V100].max_concurrent_kernels_num
+       (gpgpu_concurrent_kernel_sm ? hw_cfg.get_max_concurent_kernel()
                                    : 1) -
        1) /
-      (gpgpu_concurrent_kernel_sm ? gpu_config[V100].max_concurrent_kernels_num
+      (gpgpu_concurrent_kernel_sm ? hw_cfg.get_max_concurent_kernel()
                                   : 1));
 
   std::vector<std::map<int, std::vector<mem_instn>>> SM_traces_all_passes;
@@ -640,32 +643,32 @@ int main(int argc, char **argv) {
       single_pass_kernels_info.reserve(
           gpgpu_concurrent_kernel_sm
               ? tracer.get_appcfg()->get_kernels_num() -
-                    gpu_config[V100].max_concurrent_kernels_num * pass
+                    hw_cfg.get_max_concurent_kernel() * pass
               : 1);
     } else if (pass == 0) {
       single_pass_kernels_info.reserve(
           gpgpu_concurrent_kernel_sm
               ? std::min(tracer.get_appcfg()->get_kernels_num(),
-                         gpu_config[V100].max_concurrent_kernels_num)
+                         hw_cfg.get_max_concurent_kernel())
               : 1);
     } else {
       single_pass_kernels_info.reserve(
           gpgpu_concurrent_kernel_sm
-              ? gpu_config[V100].max_concurrent_kernels_num
+              ? hw_cfg.get_max_concurent_kernel()
               : 1);
     }
 
-    int start_kernel_id =
+    unsigned start_kernel_id =
         pass * (gpgpu_concurrent_kernel_sm
-                    ? gpu_config[V100].max_concurrent_kernels_num
+                    ? hw_cfg.get_max_concurent_kernel()
                     : 1);
-    int end_kernel_id =
+    unsigned end_kernel_id =
         (pass + 1) * (gpgpu_concurrent_kernel_sm
-                          ? gpu_config[V100].max_concurrent_kernels_num
+                          ? hw_cfg.get_max_concurent_kernel()
                           : 1) -
         1;
 
-    for (int kid = start_kernel_id;
+    for (unsigned kid = start_kernel_id;
          kid <=
          std::min(end_kernel_id, tracer.get_appcfg()->get_kernels_num() - 1);
          kid++) {
@@ -679,19 +682,19 @@ int main(int argc, char **argv) {
         &SM_traces_all_passes[pass];
 
     int pass_num =
-        int((gpu_config[V100].num_sm + world.size() - 1) / world.size());
+        int((hw_cfg.get_num_sms() + world.size() - 1) / world.size());
 
     if (world.rank() == 0)
-      pass_num = gpu_config[V100].num_sm;
+      pass_num = hw_cfg.get_num_sms();
 
     for (int _pass = 0; _pass < pass_num; _pass++) {
 
-      int curr_process_idx_rank = world.rank() + _pass * world.size();
+      unsigned curr_process_idx_rank = world.rank() + _pass * world.size();
 
-      int curr_process_idx = curr_process_idx_rank;
+      unsigned curr_process_idx = curr_process_idx_rank;
       if (world.rank() == 0)
         curr_process_idx = _pass;
-      if (curr_process_idx < gpu_config[V100].num_sm)
+      if (curr_process_idx < hw_cfg.get_num_sms())
         for (auto k : single_pass_kernels_info) {
 
           unsigned num_threadblocks_current_kernel =
@@ -705,7 +708,7 @@ int main(int argc, char **argv) {
 
           for (unsigned i = 0; i < num_threadblocks_current_kernel; i++) {
 
-            int sm_id = issuecfg->get_sm_id_of_one_block_fast(
+            unsigned sm_id = issuecfg->get_sm_id_of_one_block_fast(
                 unsigned(kernel_id + 1), unsigned(i));
             if (sm_id == curr_process_idx) {
 
@@ -745,7 +748,7 @@ int main(int argc, char **argv) {
   auto start_memory_timer = std::chrono::system_clock::now();
   private_L1_cache_stack_distance_evaluate_boost_no_concurrent(
       argc, argv, &SM_traces_all_passes, &mem_instn_distance_overflow_flag,
-      false, configs, dump_histogram, &stat_coll, KERNEL_EVALUATION,
+      false, configs, dump_histogram, &stat_coll, &hw_cfg, KERNEL_EVALUATION,
       &MEM_ACCESS_LATENCY);
   auto end_memory_timer = std::chrono::system_clock::now();
   auto duration_memory_timer =
@@ -944,7 +947,7 @@ int main(int argc, char **argv) {
                   (float)hw_cfg.get_core_clock_mhz() * 1e9),
           smid);
 
-      unsigned dram_mem_access = 302;
+      unsigned dram_mem_access = 302; // need to fix: para
       unsigned l1_cache_access = 33;
       unsigned l2_cache_access = 213;
 
