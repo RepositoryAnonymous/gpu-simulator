@@ -12,6 +12,8 @@
 #include <sys/types.h>
 #include <vector>
 
+#define MAX_SIZE_OF_MME_TRACE_FP_MAP 512
+
 std::vector<std::string> split(const std::string &str) {
   std::istringstream iss(str);
   std::vector<std::string> tokens{std::istream_iterator<std::string>{iss},
@@ -163,7 +165,7 @@ int main(int argc, char *argv[]) {
       auto x = std::make_tuple(kernel_id, item.first.second);
       auto it_map = sass_trace_fp_map.find(x);
       if (it_map == sass_trace_fp_map.end()) {
-        if (sass_trace_fp_map.size() >= 512) {
+        if (sass_trace_fp_map.size() >= MAX_SIZE_OF_MME_TRACE_FP_MAP) {
           auto it = sass_trace_fp_map.begin();
           it->second.close();
           sass_trace_fp_map.erase(it);
@@ -233,7 +235,7 @@ int main(int argc, char *argv[]) {
       auto x = std::make_tuple(kernel_id, item.first.second);
       auto it_map = mem_trace_fp_map.find(x);
       if (it_map == mem_trace_fp_map.end()) {
-        if (mem_trace_fp_map.size() >= 512) {
+        if (mem_trace_fp_map.size() >= MAX_SIZE_OF_MME_TRACE_FP_MAP) {
           auto it = mem_trace_fp_map.begin();
           it->second.close();
           mem_trace_fp_map.erase(it);
