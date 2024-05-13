@@ -150,9 +150,14 @@ public:
     l1d_cache_associative = 0;
     l1d_latency = 0;
 
+    l1_cache_line_size_for_reuse_distance = 0;
+    l2_cache_line_size_for_reuse_distance = 0;
+
     shmem_size_per_sm = 0;
     shmem_size_per_cta = 0;
     shmem_latency = 0;
+    smem_allocation_size = 0;
+    register_allocation_size = 0;
 
     l2d_size_per_sub_partition = 0;
     l2d_cache_sets = 0;
@@ -215,6 +220,7 @@ public:
   unsigned get_max_concurent_kernel() const { return max_concurent_kernel; }
   unsigned get_num_clusters() const { return num_clusters; }
   unsigned get_num_sms_per_cluster() const { return num_sms_per_cluster; }
+  unsigned get_num_sms() const { return num_clusters * num_sms_per_cluster; }
   unsigned get_num_memory_controllers() const { return num_memory_controllers; }
   unsigned get_num_sub_partition_per_memory_channel() const {
     return num_sub_partition_per_memory_channel;
@@ -413,11 +419,19 @@ public:
   unsigned get_l1d_cache_banks() const { return l1d_cache_banks; }
   unsigned get_l1d_cache_sets() const { return l1d_cache_sets; }
   unsigned get_l1d_cache_block_size() const { return l1d_cache_block_size; }
+  unsigned get_l1_cache_line_size_for_reuse_distance() const { 
+    return l1_cache_line_size_for_reuse_distance; 
+  }
+  unsigned get_l2_cache_line_size_for_reuse_distance() const { 
+    return l2_cache_line_size_for_reuse_distance; 
+  }
   unsigned get_l1d_cache_associative() const { return l1d_cache_associative; }
   unsigned get_l1d_latency() const { return l1d_latency; }
   unsigned get_shmem_size_per_sm() const { return shmem_size_per_sm; }
   unsigned get_shmem_size_per_cta() const { return shmem_size_per_cta; }
   unsigned get_shmem_latency() const { return shmem_latency; }
+  unsigned get_smem_allocation_size() const { return smem_allocation_size; }
+  unsigned get_register_allocation_size() const { return register_allocation_size; }
   unsigned get_l2d_size_per_sub_partition() const {
     return l2d_size_per_sub_partition;
   }
@@ -649,9 +663,14 @@ private:
   unsigned l1d_cache_associative;
   unsigned l1d_latency;
 
+  unsigned l1_cache_line_size_for_reuse_distance;
+  unsigned l2_cache_line_size_for_reuse_distance;
+
   unsigned shmem_size_per_sm;
   unsigned shmem_size_per_cta;
   unsigned shmem_latency;
+  unsigned smem_allocation_size;
+  unsigned register_allocation_size;
 
   unsigned l2d_size_per_sub_partition;
   unsigned l2d_cache_sets;
