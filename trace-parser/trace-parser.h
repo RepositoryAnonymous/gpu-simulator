@@ -40,7 +40,7 @@ public:
   }
   void init(std::string config_path, bool PRINT_LOG);
 
-  int get_kernels_num() { return kernels_num; }
+  unsigned get_kernels_num() { return kernels_num; }
 
   std::vector<int> *get_kernels_grid_size() { return &kernel_grid_size; }
   int get_kernel_grid_size(int kernel_id) {
