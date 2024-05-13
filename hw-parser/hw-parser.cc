@@ -217,10 +217,18 @@ void hw_config::init(const std::string config_file) {
       l1d_cache_associative = std::stoi(value);
     } else if (entry == "-gpgpu_l1d_latency") {
       l1d_latency = std::stoi(value);
+    } else if (entry == "-gpgpu_l1_cache_line_size_for_reuse_distance") {
+      l1_cache_line_size_for_reuse_distance = std::stoi(value);
+    } else if (entry == "-gpgpu_l2_cache_line_size_for_reuse_distance") {
+      l2_cache_line_size_for_reuse_distance = std::stoi(value);
     } else if (entry == "-gpgpu_shmem_size_per_sm") {
       shmem_size_per_sm = std::stoi(value);
     } else if (entry == "-gpgpu_shmem_size_per_cta") {
       shmem_size_per_cta = std::stoi(value);
+    } else if (entry == "-gpgpu_smem_allocation_size") {
+      smem_allocation_size = std::stoi(value);
+    } else if (entry == "-gpgpu_register_allocation_size") {
+      register_allocation_size = std::stoi(value);
     } else if (entry == "-gpgpu_shmem_latency") {
       shmem_latency = std::stoi(value);
     } else if (entry == "-gpgpu_l2d_size_per_sub_partition") {
@@ -493,6 +501,10 @@ int hw_parser_test() {
   std::cout << "l1d_cache_sets: " << hw_cfg.get_l1d_cache_sets() << std::endl;
   std::cout << "l1d_cache_block_size: " << hw_cfg.get_l1d_cache_block_size()
             << std::endl;
+  std::cout << "l1_cache_line_size_for_reuse_distance: " << hw_cfg.get_l1_cache_line_size_for_reuse_distance()
+            << std::endl;
+  std::cout << "l2_cache_line_size_for_reuse_distance: " << hw_cfg.get_l2_cache_line_size_for_reuse_distance()
+            << std::endl;
   std::cout << "l1d_cache_associative: " << hw_cfg.get_l1d_cache_associative()
             << std::endl;
   std::cout << "l1d_latency: " << hw_cfg.get_l1d_latency() << std::endl;
@@ -501,6 +513,8 @@ int hw_parser_test() {
   std::cout << "shmem_size_per_cta: " << hw_cfg.get_shmem_size_per_cta()
             << std::endl;
   std::cout << "shmem_latency: " << hw_cfg.get_shmem_latency() << std::endl;
+  std::cout << "smem_allocation_size: " << hw_cfg.get_smem_allocation_size() << std::endl;
+  std::cout << "register_allocation_size: " << hw_cfg.get_register_allocation_size() << std::endl;
   std::cout << "l2d_size_per_sub_partition: "
             << hw_cfg.get_l2d_size_per_sub_partition() << std::endl;
   std::cout << "l2d_cache_sets: " << hw_cfg.get_l2d_cache_sets() << std::endl;
