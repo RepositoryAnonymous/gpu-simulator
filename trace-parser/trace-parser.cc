@@ -680,7 +680,7 @@ void trace_parser::process_mem_instns(const std::string mem_instns_dir,
                                       bool PRINT_LOG,
                                       std::vector<std::pair<int, int>> *x) {
   mem_instns.resize(appcfg.get_kernels_num());
-  for (int kid = 0; kid < appcfg.get_kernels_num(); ++kid)
+  for (unsigned kid = 0; kid < appcfg.get_kernels_num(); ++kid)
     mem_instns[kid].resize(appcfg.get_kernel_grid_size(kid));
 
   DIR *dir;
@@ -795,7 +795,7 @@ void trace_parser::read_mem_instns(bool PRINT_LOG,
   }
 
   mem_instns.resize(appcfg.get_kernels_num());
-  for (int kid = 0; kid < appcfg.get_kernels_num(); ++kid) {
+  for (unsigned kid = 0; kid < appcfg.get_kernels_num(); ++kid) {
     mem_instns[kid].resize(appcfg.get_kernel_grid_size(kid));
   }
 
@@ -988,7 +988,7 @@ void trace_parser::read_compute_instns(bool PRINT_LOG,
   }
 
   conpute_instns.resize(appcfg.get_kernels_num());
-  for (int kid = 0; kid < appcfg.get_kernels_num(); ++kid)
+  for (unsigned kid = 0; kid < appcfg.get_kernels_num(); ++kid)
     conpute_instns[kid].resize(appcfg.get_num_global_warps(kid));
 
   process_compute_instns_fast(compute_instns_dir, PRINT_LOG, x);
