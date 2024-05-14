@@ -152,6 +152,10 @@ public:
 
     l1_cache_line_size_for_reuse_distance = 0;
     l2_cache_line_size_for_reuse_distance = 0;
+    dram_mem_access_latency = 0;
+    l1_access_latency = 0;
+    l2_access_latency = 0;
+    const_mem_access_latency = 0;
 
     shmem_size_per_sm = 0;
     shmem_size_per_cta = 0;
@@ -425,6 +429,11 @@ public:
   unsigned get_l2_cache_line_size_for_reuse_distance() const { 
     return l2_cache_line_size_for_reuse_distance; 
   }
+  unsigned get_dram_mem_access_latency() const { return dram_mem_access_latency; }
+  unsigned get_l1_access_latency() const { return l1_access_latency; }
+  unsigned get_l2_access_latency() const { return l2_access_latency; }
+  unsigned get_const_mem_access_latency() const { return const_mem_access_latency; }
+
   unsigned get_l1d_cache_associative() const { return l1d_cache_associative; }
   unsigned get_l1d_latency() const { return l1d_latency; }
   unsigned get_shmem_size_per_sm() const { return shmem_size_per_sm; }
@@ -665,6 +674,10 @@ private:
 
   unsigned l1_cache_line_size_for_reuse_distance;
   unsigned l2_cache_line_size_for_reuse_distance;
+  unsigned dram_mem_access_latency;
+  unsigned l1_access_latency;
+  unsigned l2_access_latency;
+  unsigned const_mem_access_latency;
 
   unsigned shmem_size_per_sm;
   unsigned shmem_size_per_cta;
