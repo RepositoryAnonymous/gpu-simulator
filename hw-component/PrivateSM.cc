@@ -1556,24 +1556,24 @@ void PrivateSM::run(unsigned KERNEL_EVALUATION, unsigned MEM_ACCESS_LATENCY,
             std::vector<std::string> opcode_tokens =
                 tmp_inst_trace->get_opcode_tokens();
 
-            (*inp.m_out[i]).set_latency(33, reg_id); // need to fix: para
+            (*inp.m_out[i]).set_latency(m_hw_cfg->get_l1_access_latency(), reg_id);
             for (const auto &token : opcode_tokens) {
               if (token.find("CONSTANT") != std::string::npos) {
-                (*inp.m_out[i]).set_latency(8, reg_id);
+                (*inp.m_out[i]).set_latency(m_hw_cfg->get_const_mem_access_latency(), reg_id);
               } else if (token.find("LDC") != std::string::npos) {
-                (*inp.m_out[i]).set_latency(8, reg_id);
+                (*inp.m_out[i]).set_latency(m_hw_cfg->get_const_mem_access_latency(), reg_id);
               } else if (token.find("LDS") != std::string::npos) {
-                (*inp.m_out[i]).set_latency(33, reg_id);
+                (*inp.m_out[i]).set_latency(m_hw_cfg->get_l1_access_latency(), reg_id);
               } else if (token.find("STRONG") != std::string::npos) {
                 (*inp.m_out[i]).set_latency(MEM_ACCESS_LATENCY, reg_id);
               } else if (token.find("LDL") != std::string::npos) {
-                (*inp.m_out[i]).set_latency(302, reg_id);
+                (*inp.m_out[i]).set_latency(m_hw_cfg->get_dram_mem_access_latency(), reg_id);
               } else if (token.find("LD.") != std::string::npos) {
-                (*inp.m_out[i]).set_latency(33, reg_id);
+                (*inp.m_out[i]).set_latency(m_hw_cfg->get_l1_access_latency(), reg_id);
               } else if (token.find("STL") != std::string::npos) {
-                (*inp.m_out[i]).set_latency(302, reg_id);
+                (*inp.m_out[i]).set_latency(m_hw_cfg->get_dram_mem_access_latency(), reg_id);
               } else if (token.find("STS") != std::string::npos) {
-                (*inp.m_out[i]).set_latency(33, reg_id);
+                (*inp.m_out[i]).set_latency(m_hw_cfg->get_l1_access_latency(), reg_id);
               } else if (token.find("STG") != std::string::npos) {
                 (*inp.m_out[i]).set_latency(MEM_ACCESS_LATENCY, reg_id);
               }
@@ -1673,7 +1673,7 @@ void PrivateSM::run(unsigned KERNEL_EVALUATION, unsigned MEM_ACCESS_LATENCY,
                 m_hw_cfg->get_num_int_units() + m_hw_cfg->get_num_dp_units() +
                 m_hw_cfg->get_num_tensor_core_units() +
                 m_hw_cfg->get_num_mem_units();
-            for (unsigned _ = 1; _ < 2; _++) { // need to fix: para
+            for (unsigned _ = 1; _ < 2; _++) {
               if (m_fu[offset_fu + _]->can_issue(
                       tmp_inst_trace->get_latency())) {
                 schedule_wb_now = !m_fu[offset_fu + _]->stallable();
