@@ -221,6 +221,14 @@ void hw_config::init(const std::string config_file) {
       l1_cache_line_size_for_reuse_distance = std::stoi(value);
     } else if (entry == "-gpgpu_l2_cache_line_size_for_reuse_distance") {
       l2_cache_line_size_for_reuse_distance = std::stoi(value);
+    } else if (entry == "-gpgpu_dram_mem_access_latency") {
+      dram_mem_access_latency = std::stoi(value);
+    } else if (entry == "-gpgpu_l1_cache_access_latency") {
+      l1_access_latency = std::stoi(value);
+    } else if (entry == "-gpgpu_l2_cache_access_latency") {
+      l2_access_latency = std::stoi(value);
+    } else if (entry == "-gpgpu_const_mem_access_latency") {
+      const_mem_access_latency = std::stoi(value);
     } else if (entry == "-gpgpu_shmem_size_per_sm") {
       shmem_size_per_sm = std::stoi(value);
     } else if (entry == "-gpgpu_shmem_size_per_cta") {
@@ -505,6 +513,10 @@ int hw_parser_test() {
             << std::endl;
   std::cout << "l2_cache_line_size_for_reuse_distance: " << hw_cfg.get_l2_cache_line_size_for_reuse_distance()
             << std::endl;
+  std::cout << "dram_mem_access_latency: " << hw_cfg.get_dram_mem_access_latency() << std::endl;
+  std::cout << "l1_access_latency: " << hw_cfg.get_l1_access_latency() << std::endl;
+  std::cout << "l2_access_latency: " << hw_cfg.get_l2_access_latency() << std::endl;
+  std::cout << "const_mem_access_latency: " << hw_cfg.get_const_mem_access_latency() << std::endl;
   std::cout << "l1d_cache_associative: " << hw_cfg.get_l1d_cache_associative()
             << std::endl;
   std::cout << "l1d_latency: " << hw_cfg.get_l1d_latency() << std::endl;
