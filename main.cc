@@ -414,9 +414,9 @@ void private_L1_cache_stack_distance_evaluate_boost_no_concurrent(
 
   world.barrier();
 
-  unsigned dram_mem_access = 302; // need to fix: para
-  unsigned l1_cache_access = 33;
-  unsigned l2_cache_access = 213;
+  unsigned dram_mem_access = hw_cfg->get_dram_mem_access_latency();
+  unsigned l1_cache_access = hw_cfg->get_l1_access_latency();
+  unsigned l2_cache_access = hw_cfg->get_l2_access_latency();
 
   unsigned l1_cache_access_latency = l1_cache_access;
   unsigned l2_cache_access_latency = l2_cache_access;
@@ -947,9 +947,9 @@ int main(int argc, char **argv) {
                   (float)hw_cfg.get_core_clock_mhz() * 1e9),
           smid);
 
-      unsigned dram_mem_access = 302; // need to fix: para
-      unsigned l1_cache_access = 33;
-      unsigned l2_cache_access = 213;
+      unsigned dram_mem_access = hw_cfg.get_dram_mem_access_latency();
+      unsigned l1_cache_access = hw_cfg.get_l1_access_latency();
+      unsigned l2_cache_access = hw_cfg.get_l2_access_latency();
 
       stat_coll.increment_num_Execute_Memory_Data_L1(
           stat_coll.get_GEMM_total_requests(smid) *
