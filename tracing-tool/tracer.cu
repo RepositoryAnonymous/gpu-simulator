@@ -525,7 +525,7 @@ void dump_issue_config() {
   for (auto it_map_issue = SMid_CTAid_Map.begin();
        it_map_issue != SMid_CTAid_Map.end(); it_map_issue++) {
 
-    if (issued_sms_num.size() < Number_SMs) {
+    if (issued_sms_num.size() < (unsigned)Number_SMs) {
       auto iter = find(issued_sms_num.begin(), issued_sms_num.end(),
                        it_map_issue->first);
       /* Don't find it_map_issue->first in issued_sms_num, need to add it. */
