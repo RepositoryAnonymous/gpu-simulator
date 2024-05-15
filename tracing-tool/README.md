@@ -29,4 +29,4 @@ NVBIT does not require application source code, any pre-compiled GPU application
   LD_PRELOAD=/path/to/tracing-tool/tracer.so /path/to/app [parameters of app] 
   ```
   
-  The above command outputs two folders ***memory_traces*** and ***sass_traces*** each has the applications kernel traces. It also output ***configs*** file whoch has information about the kernel executing inside the application. 
+  The above command outputs two folders ***memory_traces*** and ***sass_traces*** each has the applications kernel traces. It also output ***configs*** file which has information about the kernel executing inside the application. 
