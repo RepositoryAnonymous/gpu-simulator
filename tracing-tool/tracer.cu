@@ -23,6 +23,20 @@
 
 using namespace std;
 
+#define ENABLE_SAMPLING_POINT
+
+#define DEBUG 0
+
+#ifdef ENABLE_SAMPLING_POINT
+#include "../ISA-Def/ampere_opcode.h"
+#include "../ISA-Def/kepler_opcode.h"
+#include "../ISA-Def/pascal_opcode.h"
+#include "../ISA-Def/trace_opcode.h"
+#include "../ISA-Def/turing_opcode.h"
+#include "../ISA-Def/volta_opcode.h"
+#include "../ISA-Def/accelwattch_component_mapping.h"
+#endif
+
 #define MAX_KERNELS 300
 
 /* channel used to communicate from GPU to CPU receiving thread */
@@ -42,6 +56,9 @@ bool skip_flag = false;
 /* global control variables for this tool */
 uint32_t instr_begin_interval = 0;
 uint32_t instr_end_interval = UINT32_MAX;
+#ifdef ENABLE_SAMPLING_POINT
+uint32_t enable_sampling_point = 0;
+#endif
 
 /* a pthread mutex, used to prevent multiple kernels to run concurrently and
  * therefore to "corrupt" the counter variable */
@@ -50,6 +67,12 @@ pthread_mutex_t mutex;
 /* opcode to id map and reverse map  */
 map<string, int> opcode_to_id_map;
 map<int, string> id_to_opcode_map;
+
+#ifdef ENABLE_SAMPLING_POINT
+int binary_version = 0;
+const unordered_map<string, OpcodeChar> *OpcodeMap;
+string config_file_path;
+#endif
 
 struct concurrentKernelsProp {
   int true_or_false = 0;
@@ -60,16 +83,83 @@ typedef unordered_map<int, int> int_int_map;
 
 #include <chrono>
 
-#define START_TIMER(no) auto start##no = std::chrono::system_clock::now();
+#define START_TIMER(no) auto start##no = chrono::system_clock::now();
 
 #define STOP_AND_REPORT_TIMER(no)                                              \
-  auto end##no = std::chrono::system_clock::now();                             \
-  auto duration##no = std::chrono::duration_cast<std::chrono::microseconds>(   \
+  auto end##no = chrono::system_clock::now();                                  \
+  auto duration##no = chrono::duration_cast<chrono::microseconds>(             \
       end##no - start##no);                                                    \
   auto cost##no = double(duration##no.count()) *                               \
-                  std::chrono::microseconds::period::num /                     \
-                  std::chrono::microseconds::period::den;                      \
-  std::cout << "Cost " << no << " - " << cost##no << " seconds." << std::endl;
+                  chrono::microseconds::period::num /                          \
+                  chrono::microseconds::period::den;                           \
+  cout << "Cost " << no << " - " << cost##no << " seconds." << endl;
+
+#ifdef ENABLE_SAMPLING_POINT
+enum FUNC_UNITS_NAME {
+  NON_UNIT = 0,
+  SP_UNIT,
+  SFU_UNIT,
+  INT_UNIT,
+  DP_UNIT,
+  TENSOR_CORE_UNIT,
+  LDST_UNIT,
+  SPEC_UNIT_1,
+  SPEC_UNIT_2,
+  SPEC_UNIT_3,
+  NUM_FUNC_UNITS
+};
+
+vector<int> NumberInstrs_SP_UNIT;
+vector<int> NumberInstrs_SFU_UNIT;
+vector<int> NumberInstrs_INT_UNIT;
+vector<int> NumberInstrs_DP_UNIT;
+vector<int> NumberInstrs_TENSOR_CORE_UNIT;
+vector<int> NumberInstrs_LDST_UNIT;
+vector<int> NumberInstrs_SPEC_UNIT_1;
+vector<int> NumberInstrs_SPEC_UNIT_2;
+vector<int> NumberInstrs_SPEC_UNIT_3;
+
+vector<int> Cycles_NonStall_SP_UNIT;
+vector<int> Cycles_NonStall_SFU_UNIT;
+vector<int> Cycles_NonStall_INT_UNIT;
+vector<int> Cycles_NonStall_DP_UNIT;
+vector<int> Cycles_NonStall_TENSOR_CORE_UNIT;
+vector<int> Cycles_NonStall_LDST_UNIT;
+vector<int> Cycles_NonStall_SPEC_UNIT_1;
+vector<int> Cycles_NonStall_SPEC_UNIT_2;
+vector<int> Cycles_NonStall_SPEC_UNIT_3;
+
+vector<int> tCycles_NonStall_SP_UNIT;
+vector<int> tCycles_NonStall_SFU_UNIT;
+vector<int> tCycles_NonStall_INT_UNIT;
+vector<int> tCycles_NonStall_DP_UNIT;
+vector<int> tCycles_NonStall_TENSOR_CORE_UNIT;
+vector<int> tCycles_NonStall_LDST_UNIT;
+vector<int> tCycles_NonStall_SPEC_UNIT_1;
+vector<int> tCycles_NonStall_SPEC_UNIT_2;
+vector<int> tCycles_NonStall_SPEC_UNIT_3;
+
+vector<int> Cycles_FullIssueRate;
+
+int Number_SP_UNITs = 1;
+int Number_SFU_UNITs = 1;
+int Number_INT_UNITs = 1;
+int Number_DP_UNITs = 1;
+int Number_TENSOR_CORE_UNITs = 1;
+int Number_LDST_UNITs = 1;
+int Number_SPEC_UNIT_1 = 1;
+int Number_SPEC_UNIT_2 = 1;
+int Number_SPEC_UNIT_3 = 1;
+
+int gpgpu_num_clusters = 0;
+int gpgpu_num_sms_per_cluster = 0;
+int IssueRate = 0;
+int Number_SMs = 0;
+
+map<string, pair<int, int>> opcodeConfigurations;
+
+int sampling_point;
+#endif
 
 int kernel_id = 1;
 int bb_id = 0;
@@ -129,11 +219,15 @@ map<int, int> max_pc;
  */
 void nvbit_at_init() {
   setenv("CUDA_MANAGED_FORCE_DEVICE_ALLOC", "1", 1);
-  GET_VAR_INT(
-      instr_begin_interval, "INSTR_BEGIN", 0,
-      "Beginning of the instruction interval where to apply instrumentation");
+  GET_VAR_INT(instr_begin_interval, "INSTR_BEGIN", 0,
+              "Beginning of the instruction interval where to apply instrumentation");
   GET_VAR_INT(instr_end_interval, "INSTR_END", UINT32_MAX,
               "End of the instruction interval where to apply instrumentation");
+#ifdef ENABLE_SAMPLING_POINT
+  GET_VAR_INT(enable_sampling_point, "USE_SAMPLING_POINT", 1,
+              "Enable sampling point");
+#endif
+
   string pad(100, '-');
   printf("%s\n", pad.c_str());
 
@@ -143,7 +237,7 @@ void nvbit_at_init() {
       system("rm configs/*");
     } else {
       // something else
-      cout << "cannot create configs directory error:" << strerror(errno)
+      cerr << "cannot create configs directory error:" << strerror(errno)
            << endl;
       throw runtime_error(strerror(errno));
       return;
@@ -157,7 +251,7 @@ void nvbit_at_init() {
       system("rm memory_traces/*");
     } else {
       // something else
-      cout << "cannot create memory_traces directory error:" << strerror(errno)
+      cerr << "cannot create memory_traces directory error:" << strerror(errno)
            << endl;
       throw runtime_error(strerror(errno));
       return;
@@ -171,7 +265,7 @@ void nvbit_at_init() {
       system("rm sass_traces/*");
     } else {
       // something else
-      cout << "cannot create sass_traces directory error:" << strerror(errno)
+      cerr << "cannot create sass_traces directory error:" << strerror(errno)
            << endl;
       throw runtime_error(strerror(errno));
       return;
@@ -489,6 +583,50 @@ __global__ void flush_channel() {
   channel_dev.flush();
 }
 
+#ifdef ENABLE_SAMPLING_POINT
+string extract_opcode_name(const string& line) {
+  size_t pos = 0;
+  size_t underscoreCount = 0;
+  /* Find the fifth "_" in "-gpgpu_trace_opcode_latency_initiation_int" */
+  const size_t targetUnderscore = 5; 
+
+  while (pos < line.size() && underscoreCount < targetUnderscore) {
+    pos = line.find('_', pos);
+    if (pos == string::npos) {
+      break; // not found, skip out the loop
+    }
+    ++underscoreCount;
+    ++pos; // move to the next character
+  }
+
+  if (underscoreCount == targetUnderscore) {
+    /* Have found the fifth "_", extract from here until the next blank */
+    size_t start = pos;
+    size_t end = line.find(' ', start);
+    if (end != string::npos) {
+      return line.substr(start, end - start);
+    }
+  }
+
+  /* If not succeed to extract, return null character */
+  return "";
+}
+
+int findMaxIndex(const vector<int>& cycles_FullIssueRate) {
+  // check if cycles_FullIssueRate is empty
+  if (cycles_FullIssueRate.empty()) return -1;
+  int maxIndex = 0; // the index with max cycle is initialized as 0
+  for (unsigned i = 1; i < cycles_FullIssueRate.size(); ++i) {
+    // if find a larger cycle, update the maxIndex  
+    if (cycles_FullIssueRate[i] > cycles_FullIssueRate[maxIndex]) {
+      maxIndex = i;
+    }
+  }
+  return maxIndex;
+}
+#endif
+
+
 /* This call-back is triggered every time a CUDA driver call is encountered.
  * Here we can look for a particular CUDA driver call by checking at the
  * call back ids  which are defined in tools_cuda_api_meta.h.
@@ -505,8 +643,194 @@ void nvbit_at_cuda_event(CUcontext ctx, int is_exit, nvbit_api_cuda_t cbid,
   }
 
   if (cbid == API_CUDA_cuLaunchKernel_ptsz || cbid == API_CUDA_cuLaunchKernel) {
-
     cuLaunchKernel_params *p = (cuLaunchKernel_params *)params;
+
+#ifdef ENABLE_SAMPLING_POINT
+    /* Get compute capability of the current programe on a real GPU */
+    if (binary_version == 0 && enable_sampling_point) {
+      CUDA_SAFECALL(cuFuncGetAttribute(&binary_version,
+                                       CU_FUNC_ATTRIBUTE_BINARY_VERSION, p->f));
+      /* Set the OpcodeMap based on the binary version */
+      switch (binary_version) {
+        case KEPLER_BINART_VERSION:
+          OpcodeMap = &Kepler_OpcodeMap;
+          // need to fix: unsupported binary version
+          cerr << "ERROR: unsupported binary version." << endl;
+          assert(0 && "unsupported binary version");
+          break;
+        case PASCAL_TITANX_BINART_VERSION:
+          OpcodeMap = &Pascal_OpcodeMap;
+          cerr << "ERROR: unsupported binary version." << endl;
+          assert(0 && "unsupported binary version");
+          break;
+        case PASCAL_P100_BINART_VERSION:
+          OpcodeMap = &Pascal_OpcodeMap;
+          cerr << "ERROR: unsupported binary version." << endl;
+          assert(0 && "unsupported binary version");
+          break;
+        case VOLTA_BINART_VERSION:
+          OpcodeMap = &Volta_OpcodeMap;
+          config_file_path = "../DEV-Def/QV100.config";
+          break;
+        case TURING_BINART_VERSION:
+          OpcodeMap = &Turing_OpcodeMap;
+          cerr << "ERROR: unsupported binary version." << endl;
+          assert(0 && "unsupported binary version");
+          break;
+        case AMPERE_RTX_BINART_VERSION:
+          OpcodeMap = &Ampere_OpcodeMap;
+          cerr << "ERROR: unsupported binary version." << endl;
+          assert(0 && "unsupported binary version");
+          break;
+        case AMPERE_A100_BINART_VERSION:
+          OpcodeMap = &Ampere_OpcodeMap;
+          cerr << "ERROR: unsupported binary version." << endl;
+          assert(0 && "unsupported binary version");
+          break;
+        default:
+          cerr << "ERROR: unsupported binary version." << endl;
+          assert(0 && "unsupported binary version");
+          break;
+      }
+      /* Find latency and initial interval from configurations */
+      /* Read from ../DEV-Def/QV100.config, its content:
+      -gpgpu_trace_opcode_latency_initiation_int 2,1
+      -gpgpu_trace_opcode_latency_initiation_sp 2,1
+      -gpgpu_trace_opcode_latency_initiation_dp 8,2
+      -gpgpu_trace_opcode_latency_initiation_sfu 20,6
+      -gpgpu_trace_opcode_latency_initiation_tensor 2,1
+      -gpgpu_trace_opcode_latency_initiation_spec_op_1 4,4
+      -gpgpu_trace_opcode_latency_initiation_spec_op_2 200,4
+      -gpgpu_trace_opcode_latency_initiation_spec_op_3 2,2
+      */
+      ifstream configFile(config_file_path);
+      if (!configFile.is_open()) {
+        cerr << "Failed to open the config file: " 
+             << config_file_path << endl;
+        assert(0 && "unsupported binary version");
+      }
+      string line;
+      while (getline(configFile, line)) {
+        // Make sure the "-gpgpu_trace_opcode_latency_initiation" mode
+        if (line.find("-gpgpu_trace_opcode_latency_initiation") != string::npos) {
+          istringstream lineStream(line);
+          string part;
+          string opcodeType;
+          int latency, initialInterval;
+
+          // get opcode type, latencies and initial intervals
+          getline(lineStream, part, '_');
+
+          /* For ../DEV-Def/QV100.config, the output of the following code is:
+          opcodeType: 2,2        opcodeName: int
+          opcodeType: 2,2        opcodeName: sp
+          opcodeType: 8,4        opcodeName: dp
+          opcodeType: 20,8       opcodeName: sfu
+          opcodeType: 2,2        opcodeName: tensor
+          opcodeType: 2,1        opcodeName: int
+          opcodeType: 2,1        opcodeName: sp
+          opcodeType: 8,2        opcodeName: dp
+          opcodeType: 20,6       opcodeName: sfu
+          opcodeType: 2,1        opcodeName: tensor
+          opcodeType: 4,4        opcodeName: spec_op_1
+          opcodeType: 200,4      opcodeName: spec_op_2
+          opcodeType: 2,2        opcodeName: spec_op_3
+          */
+          while (getline(lineStream, part, ' ')) {
+            opcodeType = part;
+          }
+          // split latencies and initial intervals
+          size_t commaPos = opcodeType.find(',');
+          latency = stoi(opcodeType.substr(0, commaPos));
+          initialInterval = stoi(opcodeType.substr(commaPos + 1));
+          // extract such "spec_op_2" to be key of map
+          string opcodeName = extract_opcode_name(line);
+          // insert latency and initial interval to map
+          opcodeConfigurations[opcodeName] = make_pair(latency, initialInterval);
+        }
+        /* For ../DEV-Def/QV100.config:
+        -gpgpu_num_sp_units 4
+        -gpgpu_num_sfu_units 4
+        -gpgpu_num_dp_units 8
+        -gpgpu_num_int_units 8
+        -gpgpu_num_tensor_core_units 4
+        -gpgpu_num_mem_units 160
+        */
+        if (line.find("-gpgpu_num_sp_units") != string::npos) {
+          Number_SP_UNITs = stoi(line.substr(line.find(" ") + 1));
+        } else if (line.find("-gpgpu_num_sfu_units") != string::npos) {
+          Number_SFU_UNITs = stoi(line.substr(line.find(" ") + 1));
+        } else if (line.find("-gpgpu_num_dp_units") != string::npos) {
+          Number_DP_UNITs = stoi(line.substr(line.find(" ") + 1));
+        } else if (line.find("-gpgpu_num_int_units") != string::npos) {
+          Number_INT_UNITs = stoi(line.substr(line.find(" ") + 1));
+        } else if (line.find("-gpgpu_num_tensor_core_units") != string::npos) {
+          Number_TENSOR_CORE_UNITs = stoi(line.substr(line.find(" ") + 1));
+        } else if (line.find("-gpgpu_num_mem_units") != string::npos) {
+          Number_LDST_UNITs = stoi(line.substr(line.find(" ") + 1));
+        }
+        /* For ../DEV-Def/QV100.config:
+        -gpgpu_num_clusters 80
+        -gpgpu_num_sms_per_cluster 1
+        -gpgpu_num_sched_per_sm 4
+        */
+        if (line.find("-gpgpu_num_clusters") != string::npos) {
+          gpgpu_num_clusters = stoi(line.substr(line.find(" ") + 1));
+        } else if (line.find("-gpgpu_num_sms_per_cluster") != string::npos) {
+          gpgpu_num_sms_per_cluster = stoi(line.substr(line.find(" ") + 1));
+        } else if (line.find("-gpgpu_num_sched_per_sm") != string::npos) {
+          IssueRate = stoi(line.substr(line.find(" ") + 1));
+        }
+      }
+      configFile.close();
+
+      Number_SMs = gpgpu_num_clusters * gpgpu_num_sms_per_cluster;
+
+      NumberInstrs_SP_UNIT.resize(Number_SMs);
+      NumberInstrs_SFU_UNIT.resize(Number_SMs);
+      NumberInstrs_DP_UNIT.resize(Number_SMs);
+      NumberInstrs_INT_UNIT.resize(Number_SMs);
+      NumberInstrs_TENSOR_CORE_UNIT.resize(Number_SMs);
+      NumberInstrs_LDST_UNIT.resize(Number_SMs);
+      NumberInstrs_SPEC_UNIT_1.resize(Number_SMs);
+      NumberInstrs_SPEC_UNIT_2.resize(Number_SMs);
+      NumberInstrs_SPEC_UNIT_3.resize(Number_SMs);
+
+      Cycles_NonStall_SP_UNIT.resize(Number_SMs);
+      Cycles_NonStall_SFU_UNIT.resize(Number_SMs);
+      Cycles_NonStall_INT_UNIT.resize(Number_SMs);
+      Cycles_NonStall_DP_UNIT.resize(Number_SMs);
+      Cycles_NonStall_TENSOR_CORE_UNIT.resize(Number_SMs);
+      Cycles_NonStall_LDST_UNIT.resize(Number_SMs);
+      Cycles_NonStall_SPEC_UNIT_1.resize(Number_SMs);
+      Cycles_NonStall_SPEC_UNIT_2.resize(Number_SMs);
+      Cycles_NonStall_SPEC_UNIT_3.resize(Number_SMs);
+
+      tCycles_NonStall_SP_UNIT.resize(Number_SMs);
+      tCycles_NonStall_SFU_UNIT.resize(Number_SMs);
+      tCycles_NonStall_INT_UNIT.resize(Number_SMs);
+      tCycles_NonStall_DP_UNIT.resize(Number_SMs);
+      tCycles_NonStall_TENSOR_CORE_UNIT.resize(Number_SMs);
+      tCycles_NonStall_LDST_UNIT.resize(Number_SMs);
+      tCycles_NonStall_SPEC_UNIT_1.resize(Number_SMs);
+      tCycles_NonStall_SPEC_UNIT_2.resize(Number_SMs);
+      tCycles_NonStall_SPEC_UNIT_3.resize(Number_SMs);
+
+      Cycles_FullIssueRate.resize(Number_SMs);
+      
+      if (DEBUG) {
+        cout << "Number_SP_UNITs: " << Number_SP_UNITs << endl;
+        cout << "Number_SFU_UNITs: " << Number_SFU_UNITs << endl;
+        cout << "Number_DP_UNITs: " << Number_DP_UNITs << endl;
+        cout << "Number_INT_UNITs: " << Number_INT_UNITs << endl;
+        cout << "Number_TENSOR_CORE_UNITs: " << Number_TENSOR_CORE_UNITs << endl;
+        cout << "Number_LDST_UNITs: " << Number_LDST_UNITs << endl;
+        cout << "Number_SPEC_UNIT_1: " << Number_SPEC_UNIT_1 << endl;
+        cout << "Number_SPEC_UNIT_2: " << Number_SPEC_UNIT_2 << endl;
+        cout << "Number_SPEC_UNIT_3: " << Number_SPEC_UNIT_3 << endl;
+      }
+    }
+#endif
 
     if (!is_exit) {
       pthread_mutex_lock(&mutex);
@@ -583,7 +907,7 @@ void nvbit_at_cuda_event(CUcontext ctx, int is_exit, nvbit_api_cuda_t cbid,
         tot_num_warps = 1;
 
       string kernel_name = nvbit_get_func_name(ctx, p->f);
-      std::cout << kernel_name << endl;
+      cout << kernel_name << endl;
       string delimiter = "(";
       kernel_name = kernel_name.substr(0, kernel_name.find(delimiter));
       replace(kernel_name.begin(), kernel_name.end(), ' ', '_');
@@ -617,6 +941,138 @@ void nvbit_at_cuda_event(CUcontext ctx, int is_exit, nvbit_api_cuda_t cbid,
       app_config_fp << "-kernel_" + to_string(kernel_id) << "_local_base_addr "
                     << (uint64_t)nvbit_get_local_mem_base_addr(ctx) << "\n";
 
+#ifdef ENABLE_SAMPLING_POINT
+    if (enable_sampling_point) {
+      for (int i = 0; i < Number_SMs; i++) {
+        /*
+            opcodeType: 2,2        opcodeName: int
+            opcodeType: 2,2        opcodeName: sp
+            opcodeType: 8,4        opcodeName: dp
+            opcodeType: 20,8       opcodeName: sfu
+            opcodeType: 2,2        opcodeName: tensor
+            opcodeType: 2,1        opcodeName: int
+            opcodeType: 2,1        opcodeName: sp
+            opcodeType: 8,2        opcodeName: dp
+            opcodeType: 20,6       opcodeName: sfu
+            opcodeType: 2,1        opcodeName: tensor
+            opcodeType: 4,4        opcodeName: spec_op_1
+            opcodeType: 200,4      opcodeName: spec_op_2
+            opcodeType: 2,2        opcodeName: spec_op_3
+        */
+        Cycles_NonStall_SP_UNIT[i] = (float)NumberInstrs_SP_UNIT[i] / 
+                                     (float)Number_SP_UNITs + 
+                                     opcodeConfigurations["sp"].first + 
+                                     opcodeConfigurations["sp"].second;
+        Cycles_NonStall_SFU_UNIT[i] = (float)NumberInstrs_SFU_UNIT[i] / 
+                                      (float)Number_SFU_UNITs + 
+                                      opcodeConfigurations["sfu"].first + 
+                                      opcodeConfigurations["sfu"].second;
+        Cycles_NonStall_DP_UNIT[i] = (float)NumberInstrs_DP_UNIT[i] /
+                                     (float)Number_DP_UNITs + 
+                                     opcodeConfigurations["dp"].first + 
+                                     opcodeConfigurations["dp"].second;
+        Cycles_NonStall_INT_UNIT[i] = (float)NumberInstrs_INT_UNIT[i] / 
+                                      (float)Number_INT_UNITs + 
+                                      opcodeConfigurations["int"].first + 
+                                      opcodeConfigurations["int"].second;
+        Cycles_NonStall_TENSOR_CORE_UNIT[i] = (float)NumberInstrs_TENSOR_CORE_UNIT[i] / 
+                                              (float)Number_TENSOR_CORE_UNITs + 
+                                              opcodeConfigurations["tensor"].first + 
+                                              opcodeConfigurations["tensor"].second;
+        Cycles_NonStall_LDST_UNIT[i] = (float)NumberInstrs_LDST_UNIT[i] /
+                                       (float)Number_LDST_UNITs + 
+                                       opcodeConfigurations["ldst"].first + 
+                                       opcodeConfigurations["ldst"].second;
+        Cycles_NonStall_SPEC_UNIT_1[i] = (float)NumberInstrs_SPEC_UNIT_1[i] / 
+                                         (float)Number_SPEC_UNIT_1 + 
+                                         opcodeConfigurations["spec_op_1"].first + 
+                                         opcodeConfigurations["spec_op_1"].second;
+        Cycles_NonStall_SPEC_UNIT_2[i] = (float)NumberInstrs_SPEC_UNIT_2[i] /
+                                         (float)Number_SPEC_UNIT_2 + 
+                                         opcodeConfigurations["spec_op_2"].first + 
+                                         opcodeConfigurations["spec_op_2"].second;
+        Cycles_NonStall_SPEC_UNIT_3[i] = (float)NumberInstrs_SPEC_UNIT_3[i] /
+                                         (float)Number_SPEC_UNIT_3 + 
+                                         opcodeConfigurations["spec_op_3"].first + 
+                                         opcodeConfigurations["spec_op_3"].second;
+      }
+      for (int i = 0; i < Number_SMs; i++) {
+        tCycles_NonStall_SP_UNIT[i] = (float)(Cycles_NonStall_SP_UNIT[i] * Number_SP_UNITs) / 
+                                      (float)min(Number_SP_UNITs, IssueRate);
+        tCycles_NonStall_SFU_UNIT[i] = (float)(Cycles_NonStall_SFU_UNIT[i] * Number_SFU_UNITs) / 
+                                       (float)min(Number_SFU_UNITs, IssueRate);
+        tCycles_NonStall_DP_UNIT[i] = (float)(Cycles_NonStall_DP_UNIT[i] * Number_DP_UNITs) /
+                                      (float)min(Number_DP_UNITs, IssueRate);
+        tCycles_NonStall_INT_UNIT[i] = (float)(Cycles_NonStall_INT_UNIT[i] * Number_INT_UNITs) / 
+                                       (float)min(Number_INT_UNITs, IssueRate);
+        tCycles_NonStall_TENSOR_CORE_UNIT[i] = (float)(Cycles_NonStall_TENSOR_CORE_UNIT[i] * Number_TENSOR_CORE_UNITs) / 
+                                               (float)min(Number_TENSOR_CORE_UNITs, IssueRate);
+        tCycles_NonStall_LDST_UNIT[i] = (float)(Cycles_NonStall_LDST_UNIT[i] * Number_LDST_UNITs) /
+                                        (float)min(Number_LDST_UNITs, IssueRate);
+        tCycles_NonStall_SPEC_UNIT_1[i] = (float)(Cycles_NonStall_SPEC_UNIT_1[i] * Number_SPEC_UNIT_1) / 
+                                          (float)min(Number_SPEC_UNIT_1, IssueRate);
+        tCycles_NonStall_SPEC_UNIT_2[i] = (float)(Cycles_NonStall_SPEC_UNIT_2[i] * Number_SPEC_UNIT_2) /
+                                          (float)min(Number_SPEC_UNIT_2, IssueRate);
+        tCycles_NonStall_SPEC_UNIT_3[i] = (float)(Cycles_NonStall_SPEC_UNIT_3[i] * Number_SPEC_UNIT_3) /
+                                          (float)min(Number_SPEC_UNIT_3, IssueRate);
+      }
+      for (int i = 0; i < Number_SMs; i++) {
+        Cycles_FullIssueRate[i] = max({tCycles_NonStall_SP_UNIT[i], 
+                                       tCycles_NonStall_SFU_UNIT[i],
+                                       tCycles_NonStall_DP_UNIT[i],
+                                       tCycles_NonStall_INT_UNIT[i],
+                                       tCycles_NonStall_TENSOR_CORE_UNIT[i],
+                                       tCycles_NonStall_LDST_UNIT[i],
+                                       tCycles_NonStall_SPEC_UNIT_1[i],
+                                       tCycles_NonStall_SPEC_UNIT_2[i],
+                                       tCycles_NonStall_SPEC_UNIT_3[i]});
+        if (DEBUG) {
+          cout << "SM " << i << " Cycles_FullIssueRate: " << Cycles_FullIssueRate[i] << endl;
+        }
+      }
+      sampling_point = findMaxIndex(Cycles_FullIssueRate);
+      if (DEBUG) {
+        cout << "Sampled SM: " << findMaxIndex(Cycles_FullIssueRate) << endl;
+      }
+
+      app_config_fp << "-kernel_" + to_string(kernel_id) << "_sampling_point " << sampling_point << "\n";
+
+      for (int i = 0; i < Number_SMs; i++) {
+        Cycles_NonStall_SP_UNIT[i] = 0;
+        Cycles_NonStall_SFU_UNIT[i] = 0;
+        Cycles_NonStall_DP_UNIT[i] = 0;
+        Cycles_NonStall_INT_UNIT[i] = 0;
+        Cycles_NonStall_TENSOR_CORE_UNIT[i] = 0;
+        Cycles_NonStall_LDST_UNIT[i] = 0;
+        Cycles_NonStall_SPEC_UNIT_1[i] = 0;
+        Cycles_NonStall_SPEC_UNIT_2[i] = 0;
+        Cycles_NonStall_SPEC_UNIT_3[i] = 0;
+
+        tCycles_NonStall_SP_UNIT[i] = 0;
+        tCycles_NonStall_SFU_UNIT[i] = 0;
+        tCycles_NonStall_DP_UNIT[i] = 0;
+        tCycles_NonStall_INT_UNIT[i] = 0;
+        tCycles_NonStall_TENSOR_CORE_UNIT[i] = 0;
+        tCycles_NonStall_LDST_UNIT[i] = 0;
+        tCycles_NonStall_SPEC_UNIT_1[i] = 0;
+        tCycles_NonStall_SPEC_UNIT_2[i] = 0;
+        tCycles_NonStall_SPEC_UNIT_3[i] = 0;
+
+        Cycles_FullIssueRate[i] = 0;
+
+        NumberInstrs_SP_UNIT[i] = 0;
+        NumberInstrs_SFU_UNIT[i] = 0;
+        NumberInstrs_DP_UNIT[i] = 0;
+        NumberInstrs_INT_UNIT[i] = 0;
+        NumberInstrs_TENSOR_CORE_UNIT[i] = 0;
+        NumberInstrs_LDST_UNIT[i] = 0;
+        NumberInstrs_SPEC_UNIT_1[i] = 0;
+        NumberInstrs_SPEC_UNIT_2[i] = 0;
+        NumberInstrs_SPEC_UNIT_3[i] = 0; 
+      }
+    }
+#endif
+
       cout << "Exiting kernel #" << kernel_id << "...\n";
       kernel_id++;
       first_warp_exec = 0;
@@ -636,6 +1092,43 @@ void nvbit_at_cuda_event(CUcontext ctx, int is_exit, nvbit_api_cuda_t cbid,
     }
   }
 }
+
+#ifdef ENABLE_SAMPLING_POINT
+vector<string> get_opcode_tokens(string opcode) {
+  istringstream iss(opcode);
+  vector<string> opcode_tokens;
+  string token;
+  while (getline(iss, token, '.')) {
+    if (!token.empty()) opcode_tokens.push_back(token);
+  }
+  return opcode_tokens;
+}
+
+string get_func_name_by_enum(enum FUNC_UNITS_NAME func_unit) {
+  switch (func_unit) {
+    case SP_UNIT:
+      return "SP_UNIT";
+    case SFU_UNIT:
+      return "SFU_UNIT";
+    case INT_UNIT:
+      return "INT_UNIT";
+    case DP_UNIT:
+      return "DP_UNIT";
+    case TENSOR_CORE_UNIT:
+      return "TENSOR_CORE_UNIT";
+    case LDST_UNIT:
+      return "LDST_UNIT";
+    case SPEC_UNIT_1:
+      return "SPEC_UNIT_1";
+    case SPEC_UNIT_2:
+      return "SPEC_UNIT_2";
+    case SPEC_UNIT_3:
+      return "SPEC_UNIT_3";
+    default:
+      return "INT_UNIT";
+  }
+}
+#endif
 
 uint64_t kernel_mem_clk = 0;
 
@@ -744,7 +1237,69 @@ void *recv_thread_fun(void *) {
         else
           insts_trace_fp << hex << ia->pc << " " << hex << _active_mask << " "
                          << hex << ia->gwarp_id << " ";
-
+#ifdef ENABLE_SAMPLING_POINT
+        if (enable_sampling_point) {
+          string opcode_first_token = get_opcode_tokens(id_to_opcode_map[ia->opcode_id])[0];
+          unordered_map<string, OpcodeChar>::const_iterator it =
+              OpcodeMap->find(opcode_first_token);
+          if (it != OpcodeMap->end()) {
+            op_type op = (op_type)(it->second.opcode_category);
+            /*
+            NumberInstrs_SP_UNIT.resize(Number_SMs);
+            NumberInstrs_SFU_UNIT.resize(Number_SMs);
+            NumberInstrs_DP_UNIT.resize(Number_SMs);
+            NumberInstrs_INT_UNIT.resize(Number_SMs);
+            NumberInstrs_TENSOR_CORE_UNIT.resize(Number_SMs);
+            NumberInstrs_LDST_UNIT.resize(Number_SMs);
+            NumberInstrs_SPEC_UNIT_1.resize(Number_SMs);
+            NumberInstrs_SPEC_UNIT_2.resize(Number_SMs);
+            NumberInstrs_SPEC_UNIT_3.resize(Number_SMs);
+            */
+            switch (op) {
+              case SP_OP:
+                NumberInstrs_SP_UNIT[ia->sm_id]++;
+                // enum FUNC_UNITS_NAME func_unit = SP_UNIT;
+                break;
+              case DP_OP:
+                NumberInstrs_DP_UNIT[ia->sm_id]++;
+                // enum FUNC_UNITS_NAME func_unit = DP_UNIT;
+                break;
+              case SFU_OP:
+                NumberInstrs_SFU_UNIT[ia->sm_id]++;
+                // enum FUNC_UNITS_NAME func_unit = SFU_UNIT;
+                break;
+              case INTP_OP:
+                NumberInstrs_INT_UNIT[ia->sm_id]++;
+                // enum FUNC_UNITS_NAME func_unit = INT_UNIT;
+                break;
+              case SPECIALIZED_UNIT_1_OP:
+                NumberInstrs_SPEC_UNIT_1[ia->sm_id]++;
+                // enum FUNC_UNITS_NAME func_unit = SPEC_UNIT_1;
+                break;
+              case SPECIALIZED_UNIT_2_OP:
+                NumberInstrs_SPEC_UNIT_2[ia->sm_id]++;
+                // enum FUNC_UNITS_NAME func_unit = SPEC_UNIT_2;
+                break;
+              case SPECIALIZED_UNIT_3_OP:
+                NumberInstrs_SPEC_UNIT_3[ia->sm_id]++;
+                // enum FUNC_UNITS_NAME func_unit = SPEC_UNIT_3;
+                break;
+              case LOAD_OP:
+              case STORE_OP:
+                NumberInstrs_LDST_UNIT[ia->sm_id]++;
+                // enum FUNC_UNITS_NAME func_unit = LDST_UNIT;
+                break;
+              default:
+                NumberInstrs_INT_UNIT[ia->sm_id]++;
+                // enum FUNC_UNITS_NAME func_unit = INT_UNIT;
+                break;
+            }
+          } else {
+            cerr << "ERROR: undefined opcode: " << id_to_opcode_map[ia->opcode_id] << endl;
+            assert(0 && "undefined instruction");
+          }
+        }
+#endif
         if (ia->is_mem_inst == 1 && ia->pred_off_threads != 32) {
 
           if (first_kernel_mem_clk == 0) {
@@ -772,8 +1327,8 @@ void *recv_thread_fun(void *) {
               mem_trace_fp_map.erase(it);
             }
             ofstream &mem_trace_fp =
-                mem_trace_fp_map.emplace(x, std::ofstream{}).first->second;
-            mem_trace_fp.open(file_name, std::ios::app);
+                mem_trace_fp_map.emplace(x, ofstream{}).first->second;
+            mem_trace_fp.open(file_name, ios::app);
             mem_trace_fp_ptr = &mem_trace_fp;
           } else {
             mem_trace_fp_ptr = &(it_map->second);
@@ -804,13 +1359,13 @@ void *recv_thread_fun(void *) {
           long long tmp_stride1 = stride1[0];
           int tmp_num1 = 1;
           vector<string> tmp_strings;
-          std::stringstream ss1, ss2;
+          stringstream ss1, ss2;
           for (unsigned _s = 1; _s < stride1.size(); _s++) {
             if (stride1[_s] == tmp_stride1) {
               tmp_num1++;
             } else {
-              ss1.str(std::string());
-              ss2.str(std::string());
+              ss1.str(string());
+              ss2.str(string());
               ss1 << hex << tmp_stride1;
               ss2 << hex << tmp_num1;
               tmp_strings.push_back(to_string(tmp_stride1) + ":" +
@@ -819,8 +1374,8 @@ void *recv_thread_fun(void *) {
               tmp_num1 = 1;
             }
           }
-          ss1.str(std::string());
-          ss2.str(std::string());
+          ss1.str(string());
+          ss2.str(string());
           ss1 << hex << tmp_stride1;
           ss2 << hex << tmp_num1;
           tmp_strings.push_back(to_string(tmp_stride1) + ":" +
@@ -846,8 +1401,8 @@ void *recv_thread_fun(void *) {
               if (stride2[_s] == tmp_stride2) {
                 tmp_num2++;
               } else {
-                ss1.str(std::string());
-                ss2.str(std::string());
+                ss1.str(string());
+                ss2.str(string());
                 ss1 << hex << tmp_stride2;
                 ss2 << hex << tmp_num2;
                 tmp_strings.push_back(to_string(tmp_stride2) + ":" +
@@ -856,8 +1411,8 @@ void *recv_thread_fun(void *) {
                 tmp_num2 = 1;
               }
             }
-            ss1.str(std::string());
-            ss2.str(std::string());
+            ss1.str(string());
+            ss2.str(string());
             ss1 << hex << tmp_stride2;
             ss2 << hex << tmp_num2;
             tmp_strings.push_back(to_string(tmp_stride2) + ":" +
