@@ -72,6 +72,10 @@ void app_config::init(std::string config_path, bool PRINT_LOG) {
   kernel_shmem_base_addr.resize(kernels_num);
   kernel_local_base_addr.resize(kernels_num);
 
+#ifdef ENABLE_SAMPLING_POINT
+  kernel_sampling_point.resize(kernels_num);
+#endif
+
   for (int j = 0; j < kernels_num; ++j) {
     while (inputFile.good()) {
       getline(inputFile, line);
@@ -185,6 +189,15 @@ void app_config::init(std::string config_path, bool PRINT_LOG) {
         kernel_local_base_addr[j] =
             std::stoull(line.substr(found + ss.str().length()), 0, 16);
       }
+
+#ifdef ENABLE_SAMPLING_POINT
+      ss.str("");
+      ss << "-kernel_" << j + 1 << "_sampling_point";
+      found = line.find(ss.str());
+      if (found != std::string::npos) {
+        kernel_sampling_point[j] = std::stoi(line.substr(found + ss.str().length()));
+      }
+#endif      
     }
     inputFile.clear();
     inputFile.seekg(0, std::ios::beg);
@@ -443,6 +456,11 @@ kernel_trace_t *trace_parser::parse_kernel_info(int kernel_id, bool PRINT_LOG) {
       get_appcfg()->get_kernel_shmem_base_addr(kernel_id);
   kernel_info->local_base_addr =
       get_appcfg()->get_kernel_local_base_addr(kernel_id);
+
+#ifdef ENABLE_SAMPLING_POINT
+  kernel_info->sampling_point = 
+      get_appcfg()->get_kernel_sampling_point(kernel_id);
+#endif
 
   return kernel_info;
 }
