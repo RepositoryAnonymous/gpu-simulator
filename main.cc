@@ -774,7 +774,13 @@ int main(int argc, char **argv) {
 
     unsigned smid = curr_process_idx_rank;
 
+#ifdef ENABLE_SAMPLING_POINT
+    if (smid == (unsigned)tracer.get_appcfg()->get_kernel_sampling_point(KERNEL_EVALUATION)) {
+      std::cout << "Tracer's Sampling Point: SM-" << smid << " ..." << std::endl;
+#else
     if (smid == tracer.get_the_least_sm_id_of_all_blocks()) {
+      std::cout << "Default Sampling Point: SM-" << smid << " ..." << std::endl;
+#endif
       std::time_t now = time(0);
       char *dt = ctime(&now);
       std::cout << "\nCurrent Time: " << dt << std::endl;
