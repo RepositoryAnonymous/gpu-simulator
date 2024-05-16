@@ -118,6 +118,15 @@ public:
     return kernel_cuda_stream_id[kernel_id];
   }
 
+#ifdef ENABLE_SAMPLING_POINT
+  std::vector<int> *get_kernels_sampling_point() {
+    return &kernel_sampling_point;
+  }
+  int get_kernel_sampling_point(int kernel_id) {
+    return kernel_sampling_point[kernel_id];
+  }
+#endif
+
   std::vector<unsigned long long> *get_kernels_shmem_base_addr() {
     return &kernel_shmem_base_addr;
   }
@@ -155,6 +164,10 @@ private:
   std::vector<int> kernel_tb_dim_z;
   std::vector<unsigned long long> kernel_shmem_base_addr;
   std::vector<unsigned long long> kernel_local_base_addr;
+
+#ifdef ENABLE_SAMPLING_POINT
+  std::vector<int> kernel_sampling_point;
+#endif
 };
 
 class instn_info_t {
