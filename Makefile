@@ -59,7 +59,7 @@ SRCS := $(CC_SRCS) $(CXX_SRCS)
 CC_OBJS := $(CC_SRCS:%.c=$(OBJ_PATH)/%.o)
 CXX_OBJS := $(CXX_SRCS:%.cc=$(OBJ_PATH)/%.o)
 
-OBJS := $(CC_OBJS) $(CXX_OBJS)
+OBJS := $(CXX_OBJS) $(CC_OBJS) 
 
 DEPS := $(OBJS:.o=.d)
 
