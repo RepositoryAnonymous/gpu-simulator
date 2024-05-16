@@ -3141,6 +3141,10 @@ with open(reports_dir + '/' + f'kernel-{kernel_id}-summary.txt', 'w') as f:
             str(num_Issue_Compute_Data_scoreboard_summary) + "\n")
     f.write("\n")
     all_Compute_Data_cycles = num_Issue_Compute_Data_scoreboard_summary
+    
+    if all_Compute_Data_cycles == 0:
+        all_Compute_Data_cycles = 1
+    
     f.write(" - Compute Data Stall Cycles Breakdown Distribution: " + "\n")
     f.write("       * Issue_scoreboard: " + str(
         format(
