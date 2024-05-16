@@ -8,6 +8,8 @@
 #define USE_BOOST
 #define gpgpu_concurrent_kernel_sm false
 
+#define ENABLE_SAMPLING_POINT
+
 #define WARP_SIZE 32
 #define MAX_DST 1
 #define MAX_SRC 4
