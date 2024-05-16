@@ -1,6 +1,8 @@
 #include <fstream>
 #include <string>
 
+#include "../common/common_def.h"
+
 #ifndef KERNEL_TRACE_H
 #define KERNEL_TRACE_H
 
@@ -24,6 +26,10 @@ struct kernel_trace_t {
   std::string nvbit_verion;
   unsigned long long shmem_base_addr;
   unsigned long long local_base_addr;
+
+#ifdef ENABLE_SAMPLING_POINT
+  unsigned sampling_point;
+#endif
 
   std::ifstream *ifs;
 };
