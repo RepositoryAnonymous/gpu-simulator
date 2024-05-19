@@ -1797,9 +1797,7 @@ void PrivateSM::run(unsigned KERNEL_EVALUATION, unsigned MEM_ACCESS_LATENCY,
         last_issue_warp_id = find_last_issue_warp_id->second;
       }
 
-      for (auto gwid = _gwarp_id_start; (gwid <= _gwarp_id_end)
-
-               ;
+      for (auto gwid = _gwarp_id_start; (gwid <= _gwarp_id_end);
            gwid++) {
 
         auto wid =
