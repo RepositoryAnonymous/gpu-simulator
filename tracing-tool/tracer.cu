@@ -627,6 +627,41 @@ int findMaxIndex(const vector<int> &cycles_FullIssueRate) {
 }
 #endif
 
+#include <dlfcn.h>
+
+// Get the absolute path of the current dynamic library
+string get_self_absolute_path() {
+    Dl_info dl_info;
+    if (dladdr(reinterpret_cast<void*>(get_self_absolute_path), &dl_info)) {
+        char* real_path = realpath(dl_info.dli_fname, nullptr);
+        if (real_path) {
+            string path(real_path);
+            free(real_path);
+            return path;
+        }
+    }
+    cerr << "ERROR: Cannot get the absolute path of the current dynamic library." << endl;
+    return "";
+}
+
+#include <cstring>
+
+string process_self_absolute_path(string full_path) {
+  char path_copy[1024]; // Make sure this is large enough for your path
+  strncpy(path_copy, full_path.data(), sizeof(path_copy));
+  path_copy[sizeof(path_copy) - 1] = '\0'; // Ensure null-terminated
+
+  // Find the last occurrence of '/'
+  char* last_slash = strrchr(path_copy, '/');
+  if (last_slash != nullptr) {
+    // Remove the filename to get only the directory
+    *last_slash = '\0';
+  }
+
+  // Return the directory path
+  return string(path_copy);
+}
+
 /* This call-back is triggered every time a CUDA driver call is encountered.
  * Here we can look for a particular CUDA driver call by checking at the
  * call back ids  which are defined in tools_cuda_api_meta.h.
@@ -650,6 +685,7 @@ void nvbit_at_cuda_event(CUcontext ctx, int is_exit, nvbit_api_cuda_t cbid,
     if (binary_version == 0 && enable_sampling_point) {
       CUDA_SAFECALL(cuFuncGetAttribute(&binary_version,
                                        CU_FUNC_ATTRIBUTE_BINARY_VERSION, p->f));
+      string full_config_path;
       /* Set the OpcodeMap based on the binary version */
       switch (binary_version) {
       case KEPLER_BINART_VERSION:
@@ -671,6 +707,9 @@ void nvbit_at_cuda_event(CUcontext ctx, int is_exit, nvbit_api_cuda_t cbid,
       case VOLTA_BINART_VERSION:
         OpcodeMap = &Volta_OpcodeMap;
         config_file_path = "../DEV-Def/QV100.config";
+        full_config_path = process_self_absolute_path(get_self_absolute_path()) + 
+                           "/" + config_file_path;
+        config_file_path = full_config_path;
         break;
       case TURING_BINART_VERSION:
         OpcodeMap = &Turing_OpcodeMap;
