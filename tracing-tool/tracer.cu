@@ -23,7 +23,7 @@
 
 using namespace std;
 
-#define ENABLE_SAMPLING_POINT
+// #define ENABLE_SAMPLING_POINT
 
 #define DEBUG 0
 
@@ -37,7 +37,7 @@ using namespace std;
 #include "../ISA-Def/volta_opcode.h"
 #endif
 
-#define MAX_KERNELS 300
+#define MAX_KERNELS 100
 
 /* channel used to communicate from GPU to CPU receiving thread */
 #define CHANNEL_SIZE (1l << 20)
@@ -154,7 +154,6 @@ int Number_SPEC_UNIT_3 = 1;
 int gpgpu_num_clusters = 0;
 int gpgpu_num_sms_per_cluster = 0;
 int IssueRate = 0;
-int Number_SMs = 0;
 
 map<string, pair<int, int>> opcodeConfigurations;
 
@@ -181,6 +180,23 @@ int inst_count = 0;
 int kernel_gridX = 0;
 int kernel_gridY = 0;
 int kernel_gridZ = 0;
+
+int Number_SMs = 0;
+#include "cuda_runtime.h"
+#include "device_launch_parameters.h"
+void GetCudaImfo_Number_SMs() {
+  int deviceCount;
+    cudaGetDeviceCount(&deviceCount);
+    int dev;
+    for (dev = 0; dev < deviceCount; dev++) {
+      cudaDeviceProp deviceProp;
+      cudaGetDeviceProperties(&deviceProp, dev);
+      if (dev == 0)
+        if (deviceProp.minor = 9999 && deviceProp.major == 9999)
+          cout << endl;
+      Number_SMs = (int)deviceProp.multiProcessorCount;
+    }
+}
 
 typedef map<int, vector<tuple<int, int, int, int>>> SMid_CTAid_Map_t;
 
@@ -322,6 +338,8 @@ void nvbit_at_init() {
                      "                     ######\n";
   instn_config_fp << "#########################################################"
                      "###########################\n\n";
+
+  GetCudaImfo_Number_SMs();
 }
 
 void dump_app_config() {
