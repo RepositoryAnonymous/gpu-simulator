@@ -23,7 +23,7 @@
 
 using namespace std;
 
-// #define ENABLE_SAMPLING_POINT
+#define ENABLE_SAMPLING_POINT
 
 #define DEBUG 0
 
