@@ -743,7 +743,7 @@ int main(int argc, char **argv) {
       mem_instn_distance_overflow_flag;
 
   std::vector<unsigned> MEM_ACCESS_LATENCY;
-  MEM_ACCESS_LATENCY.resize(80);
+  MEM_ACCESS_LATENCY.resize(hw_cfg.get_num_sms());
 
   auto start_memory_timer = std::chrono::system_clock::now();
   private_L1_cache_stack_distance_evaluate_boost_no_concurrent(
