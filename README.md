@@ -26,7 +26,7 @@ The source code for the simulator presented in our paper (Submission #49) at the
   Download the source code, uncompress the folder, and change into the MPICH directory.
   ```shell
   wget https://www.mpich.org/static/downloads/3.3.2/mpich-3.3.2.tar.gz
-  tar -xzf mpich-3-3.2.tar.gz
+  tar -xzf mpich-3.3.2.tar.gz
   cd mpich-3-3.2
   ```
   After doing this, you should be able to configure your installation by performing `./configure`.
