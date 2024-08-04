@@ -55,7 +55,7 @@ The source code for the simulator presented in our paper (Submission #49) at the
   ```
   After doing this, you should be able to compile the Boost library.
   ```shell
-  ./bootstrap.sh –prefix=/path/to/boost
+  ./bootstrap.sh -prefix=/path/to/boost
   ```
   Where `/path/to/boost` is the path you want to install Boost in.
   When the compilation is done, install Boost with `sudo ./b2 install`， and this will allow you
