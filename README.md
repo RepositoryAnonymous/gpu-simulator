@@ -58,7 +58,11 @@ The source code for the simulator presented in our paper (Submission #49) at the
   ./bootstrap.sh -prefix=/path/to/boost
   ```
   Where `/path/to/boost` is the path you want to install Boost in.
-  When the compilation is done, install Boost with `sudo ./b2 install`， and this will allow you
+  As explained in the boost installation instructions, running the `./bootstrap.sh` from the boost root directory will produce a `project-config.jam` file. You need to edit that file and add the following line:
+  ```shell
+  using mpi ;
+  ```
+  When the above is done, install Boost with `sudo ./b2 install`， and this will allow you
   to install the Boost library in the `/path/to/boost` directory.
   After installing, you also need to set the environment variable:
   ```shell
