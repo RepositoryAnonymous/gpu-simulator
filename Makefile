@@ -1,11 +1,23 @@
 USE_BOOST ?= 1
 DEBUG ?= 0
 
-BOOST_HOME ?= $(shell dirname $(shell echo $$LD_LIBRARY_PATH | tr ':' '\n' | grep boost/lib | head -n 1))
-MPI_HOME ?= $(shell dirname $(dirname $(which mpicc)))
+BOOST_PATH := $(shell echo $$LD_LIBRARY_PATH | tr ':' '\n' | grep boost/lib | head -n 1)
+ifeq ($(BOOST_PATH),)
+	BOOST_HOME ?=
+else
+	BOOST_HOME := $(shell dirname $(BOOST_PATH))
+#	$(info Using BOOST_HOME: $(BOOST_HOME))
+endif
 
-MPICXX = $(MPI_HOME)/bin/mpic++
-MPIRUN = $(MPI_HOME)/bin/mpirun
+MPICC_PATH := $(shell which mpicc)
+# $(info Using MPICC_PATH: $(MPICC_PATH))
+MPI_PATH := $(shell dirname $(MPICC_PATH))
+# $(info Using MPI_PATH: $(MPI_PATH))
+MPI_HOME ?= $(shell dirname $(MPI_PATH))
+# $(info Using MPI_HOME: $(MPI_HOME))
+
+MPICXX = $(shell which mpic++)
+MPIRUN = $(shell which mpirun)
 
 ifeq ($(USE_BOOST),1)
 	CXX = $(MPICXX)
@@ -25,7 +37,7 @@ ifeq ($(GNUC_CPP0X), 1)
 	CXXFLAGS += -std=c++11
 endif
 
-INC_DIRS = -I./hw-parser -I./hw-component -I./ISA-Def -I./DEV-Def -I./trace-parser -I./trace-driven -I./common -I./common/CLI -I./common/CLI/impl -I$(MPI_HOME)/include -I$(BOOST_HOME)/include -I./parda
+INC_DIRS = -I./hw-parser -I./hw-component -I./ISA-Def -I./DEV-Def -I./trace-parser -I./trace-driven -I./common -I./common/CLI -I./common/CLI/impl -I$(MPI_HOME)/include -I./parda
 CXXFLAGS += $(INC_DIRS) $(shell pkg-config --cflags glib-2.0)
 CFLAGS += $(INC_DIRS)
 
@@ -70,7 +82,7 @@ default: all
 all: $(TARGET)
 
 $(TARGET): $(OBJS)
-	$(CXX) $(CXXFLAGS) $(OPTFLAGS) -o $@ $^ $(LIBRARIES)
+	$(CXX) $(CXXFLAGS) $(OPTFLAGS) -o $@ $^ $(LIBRARIES) 
 
 $(OBJ_PATH)/%.o: %.cc
 	@mkdir -p $(@D)
