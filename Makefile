@@ -70,7 +70,7 @@ default: all
 all: $(TARGET)
 
 $(TARGET): $(OBJS)
-	$(CXX) $(CXXFLAGS) $(OPTFLAGS) $(LIBRARIES) -o $@ $^
+	$(CXX) $(CXXFLAGS) $(OPTFLAGS) -o $@ $^ $(LIBRARIES)
 
 $(OBJ_PATH)/%.o: %.cc
 	@mkdir -p $(@D)
