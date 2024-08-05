@@ -2453,7 +2453,7 @@ void PrivateSM::run(unsigned KERNEL_EVALUATION, unsigned MEM_ACCESS_LATENCY,
                   _warps_per_block +
               _gwarp_id_start;
 
-          unsigned _index;
+          unsigned _index = 0;
           for (auto it_kernel_block_pair = kernel_block_pair.begin();
                it_kernel_block_pair != kernel_block_pair.end();
                it_kernel_block_pair++) {
