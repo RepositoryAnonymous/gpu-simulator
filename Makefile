@@ -37,7 +37,7 @@ ifeq ($(GNUC_CPP0X), 1)
 	CXXFLAGS += -std=c++11
 endif
 
-INC_DIRS = -I./hw-parser -I./hw-component -I./ISA-Def -I./DEV-Def -I./trace-parser -I./trace-driven -I./common -I./common/CLI -I./common/CLI/impl -I$(MPI_HOME)/include -I./parda
+INC_DIRS = -I./hw-parser -I./hw-component -I./ISA-Def -I./DEV-Def -I./trace-parser -I./trace-driven -I./common -I./common/CLI -I./common/CLI/impl -I$(MPI_HOME)/include -I$(BOOST_HOME)/include -I./parda
 CXXFLAGS += $(INC_DIRS) $(shell pkg-config --cflags glib-2.0)
 CFLAGS += $(INC_DIRS)
 
